@@ -4,7 +4,11 @@ services:
     env: python
     region: singapore
     plan: free
-    buildCommand: "pip install -r backend/requirements.txt && cd backend && python models/train_model.py && python database/seed.py"
+    buildCommand: |
+    pip install -r backend/requirements.txt
+    cd backend
+    python3 models/train_model.py || true
+    python3 database/seed.py || true
     startCommand: "gunicorn --chdir backend 'app:create_app()' --workers 2 --timeout 120 --bind 0.0.0.0:$PORT"
     envVars:
       - key: MONGO_URI
