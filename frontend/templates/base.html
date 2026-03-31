@@ -7,7 +7,7 @@
   <title>{% block title %}TractoNow{% endblock %} | TractoNow 🚜</title>
   <link rel="manifest" href="/manifest.json"/>
   <link rel="icon" href="/static/images/favicon.svg" type="image/svg+xml"/>
-  <link rel="stylesheet" href="/static/css/style.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   {% block head_extra %}{% endblock %}
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
@@ -116,11 +116,9 @@
   </style>
 </head>
 <body>
-  {% if request.path == '/' %}
-<video autoplay muted loop>
+ <video autoplay muted loop playsinline id="bg-video">
   <source src="{{ url_for('static', filename='videos/bg.mp4') }}" type="video/mp4">
 </video>
-{% endif %}
 <!-- PWA Banner -->
 <div id="pwa-install-banner" style="display:none;background:var(--primary);color:#fff;
      padding:.55rem 1rem;align-items:center;justify-content:center;gap:1rem;font-size:.88rem;">

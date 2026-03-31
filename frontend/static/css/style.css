@@ -384,11 +384,9 @@ footer a { color: #d1fae5; }
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
-
-  object-fit: cover;   /* 🔥 THIS makes it behave like background image */
-
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   z-index: -1;
 }
 html, body {
@@ -398,6 +396,10 @@ html, body {
 }
 body::before {
   background: rgba(22,163,74,0.15);
+}
+body {
+  position: relative;
+  z-index: 0;
 }
 .register-bg {
   min-height: calc(100vh - 70px); /* adjust navbar height */
