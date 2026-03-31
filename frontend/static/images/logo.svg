@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 60" width="240" height="60">
+  <!-- Background pill -->
+  <rect width="240" height="60" rx="12" fill="#16a34a"/>
+
+  <!-- Tractor icon -->
+  <!-- Body -->
+  <rect x="12" y="22" width="22" height="14" rx="3" fill="#ffffff"/>
+  <!-- Cabin -->
+  <rect x="18" y="14" width="14" height="11" rx="2" fill="#bbf7d0"/>
+  <!-- Exhaust pipe -->
+  <rect x="27" y="10" width="3" height="6" rx="1" fill="#ffffff"/>
+  <!-- Big rear wheel -->
+  <circle cx="22" cy="38" r="8" fill="#ffffff" stroke="#bbf7d0" stroke-width="2"/>
+  <circle cx="22" cy="38" r="3" fill="#16a34a"/>
+  <!-- Small front wheel -->
+  <circle cx="36" cy="38" r="5" fill="#ffffff" stroke="#bbf7d0" stroke-width="1.5"/>
+  <circle cx="36" cy="38" r="2" fill="#16a34a"/>
+  <!-- Ground line -->
+  <line x1="10" y1="46" x2="50" y2="46" stroke="#bbf7d0" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- App name -->
+  <text x="58" y="36" font-family="'Segoe UI', Arial, sans-serif"
+        font-size="22" font-weight="800" fill="#ffffff" letter-spacing="-0.5">TractoNow</text>
+
+  <!-- Tagline -->
+  <text x="59" y="50" font-family="'Segoe UI', Arial, sans-serif"
+        font-size="9" fill="#bbf7d0" letter-spacing="0.5">SMART AGRI EQUIPMENT</text>
+</svg>

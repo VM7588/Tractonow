@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+{% block title %}Owner Dashboard{% endblock %}
+{% block content %}
+<div class="container page-wrap">
+  <div class="dashboard-header">
+    <h2>🚜 Welcome, <span id="oname"></span>!</h2>
+    <p>Manage your equipment and incoming booking requests.</p>
+    <div style="margin-top:.85rem;display:flex;gap:.65rem;flex-wrap:wrap;">
+      <button class="btn btn-sm" style="background:#fff;color:var(--primary);" onclick="openAddModal()">+ Add Equipment</button>
+      <a href="/notifications" class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.35);">🔔 Alerts</a>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-cards">
+    <div class="stat-card"><div class="stat-value" id="st-eq">—</div><div class="stat-label">My Equipment</div></div>
+    <div class="stat-card"><div class="stat-value" id="st-pend">—</div><div class="stat-label">Pending</div></div>
+    <div class="stat-card"><div class="stat-value" id="st-act">—</div><div class="stat-label">Active</div></div>
+    <div class="stat-card"><div class="stat-value" id="st-earn">—</div><div class="stat-label">Est. Earnings</div></div>
+    <div class="stat-card"><div class="stat-value" id="st-rating">—</div><div class="stat-label">Avg Rating</div></div>
+  </div>
+
+  <!-- My Equipment -->
+  <div class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.85rem;">
+      <h3>🛠️ My Equipment</h3>
+      <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add New</button>
+    </div>
+    <div id="eq-list" class="grid-3"><div class="spinner" style="display:block;margin:2rem auto;"></div></div>
+  </div>
+
+  <!-- Incoming Bookings -->
+  <div class="section">
+    <h3 style="margin-bottom:.85rem;">📥 Incoming Bookings</h3>
+    <div id="bk-list"><div class="spinner" style="display:block;margin:2rem auto;"></div></div>
+  </div>
+
+  <!-- Demand Heatmap -->
+  <div class="section">
+    <h3 style="margin-bottom:.75rem;">🤖 Demand Forecast</h3>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:.85rem;">
+      <select id="hm-eq" class="form-control" style="max-width:200px;">
+        <option value="tractor">Tractor</option><option value="harvester">Harvester</option>
+        <option value="sprayer">Sprayer</option><option value="rotavator">Rotavator</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="loadHeatmap()">Refresh</button>
+    </div>
+    <div id="heatmap"><div class="spinner" style="display:block;margin:1rem auto;"></div></div>
+  </div>
+</div>
+
+<!-- ── Add Equipment Modal ─────────────────────────────────────────── -->
+<div id="add-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+  <div class="card" style="max-width:540px;width:100%;max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem;">
+      <h3 id="modal-title">Add Equipment</h3>
+      <button onclick="closeAddModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;">✕</button>
+    </div>
+
+    <!-- Image Upload -->
+    <div class="form-group">
+      <label class="form-label">Equipment Photo</label>
+      <div id="img-preview" class="img-upload-preview" onclick="document.getElementById('img-input').click()">
+        <span id="img-placeholder" style="color:var(--text-muted);font-size:.9rem;">📷 Click to upload photo</span>
+        <img id="img-el" src="" style="display:none;width:100%;height:auto;max-height:320px;object-fit:contain;"/>
+      </div>
+      <input type="file" id="img-input" accept="image/*" style="display:none;" onchange="previewImage(this)"/>
+      <p class="form-hint">JPG, PNG up to 5MB</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Equipment Name *</label>
+      <input type="text" id="eq-name" class="form-control" placeholder="e.g. Mahindra 575 DI"/>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;">
+      <div class="form-group">
+        <label class="form-label">Type *</label>
+        <select id="eq-type" class="form-control">
+          <option value="tractor">🚜 Tractor</option><option value="harvester">🌾 Harvester</option>
+          <option value="rotavator">⚙️ Rotavator</option><option value="seed_drill">🌱 Seed Drill</option>
+          <option value="sprayer">💧 Sprayer</option><option value="cultivator">🔧 Cultivator</option>
+          <option value="plough">🪵 Plough</option><option value="thresher">🌀 Thresher</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Price/hr (₹) *</label>
+        <input type="number" id="eq-price" class="form-control" placeholder="350" min="50"/>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;">
+      <div class="form-group">
+        <label class="form-label">Brand</label>
+        <input type="text" id="eq-brand" class="form-control" placeholder="Mahindra"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Model</label>
+        <input type="text" id="eq-model" class="form-control" placeholder="575 DI"/>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;">
+      <div class="form-group">
+        <label class="form-label">HP</label>
+        <input type="number" id="eq-hp" class="form-control" placeholder="45" min="0"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Village</label>
+        <input type="text" id="eq-village" class="form-control" placeholder="Your village"/>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;">
+      <div class="form-group">
+        <label class="form-label">Mandal</label>
+        <input type="text" id="eq-mandal" class="form-control" placeholder="Your mandal"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">District</label>
+        <input type="text" id="eq-district" class="form-control" placeholder="Your district"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">State</label>
+      <input type="text" id="eq-state" class="form-control" value="Telangana"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea id="eq-desc" class="form-control" rows="2" placeholder="Brief description…"></textarea>
+    </div>
+    <div id="add-err" class="alert alert-error" style="display:none;"></div>
+    <input type="hidden" id="editing-eq-id" value=""/>
+    <button class="btn btn-primary btn-full" onclick="submitEquipment()">💾 Save Equipment</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _imgBase64="";let _imgExt="jpg";
+const TYPE_EMOJI={"tractor":"🚜","harvester":"🌾","sprayer":"💧","rotavator":"⚙️","seed_drill":"🌱","cultivator":"🔧","plough":"🪵","thresher":"🌀"};
+
+document.addEventListener("DOMContentLoaded",async()=>{
+  redirectIfNotLoggedIn();
+  const u=Auth.getUser();
+  if(u?.role!=="owner"){window.location.href="/dashboard/farmer";return;}
+  document.getElementById("oname").textContent=u.name;
+  // Pre-fill location fields with owner's location
+  if(u.district) document.getElementById("eq-district").value=u.district;
+  if(u.mandal)   document.getElementById("eq-mandal").value=u.mandal;
+  if(u.village)  document.getElementById("eq-village").value=u.village;
+  if(u.state)    document.getElementById("eq-state").value=u.state;
+  await Promise.all([loadMyEquipment(),loadIncoming(),loadRating(),loadHeatmap()]);
+  document.addEventListener("click",e=>{if(e.target.id==="add-modal")closeAddModal();});
+});
+
+function previewImage(input){
+  if(!input.files||!input.files[0])return;
+  const file=input.files[0];
+  if(file.size>5*1024*1024){Toast.error("Image too large. Max 5MB.");return;}
+  _imgExt=file.name.split(".").pop().toLowerCase();
+  const reader=new FileReader();
+  reader.onload=e=>{
+    _imgBase64=e.target.result;
+    document.getElementById("img-el").src=e.target.result;
+    document.getElementById("img-el").style.display="block";
+    document.getElementById("img-placeholder").style.display="none";
+  };
+  reader.readAsDataURL(file);
+}
+
+function openAddModal(eqData=null){
+  document.getElementById("modal-title").textContent=eqData?"Edit Equipment":"Add Equipment";
+  document.getElementById("editing-eq-id").value=eqData?.id||"";
+  document.getElementById("add-err").style.display="none";
+  _imgBase64="";
+  if(eqData){
+    document.getElementById("eq-name").value=eqData.name||"";
+    document.getElementById("eq-type").value=eqData.type||"tractor";
+    document.getElementById("eq-price").value=eqData.price_per_hour||"";
+    document.getElementById("eq-brand").value=eqData.brand||"";
+    document.getElementById("eq-model").value=eqData.model||"";
+    document.getElementById("eq-hp").value=eqData.hp||"";
+    document.getElementById("eq-village").value=eqData.location?.village||"";
+    document.getElementById("eq-mandal").value=eqData.location?.mandal||"";
+    document.getElementById("eq-district").value=eqData.location?.district||"";
+    document.getElementById("eq-state").value=eqData.location?.state||"Telangana";
+    document.getElementById("eq-desc").value=eqData.description||"";
+    if(eqData.image_url){
+      document.getElementById("img-el").src=eqData.image_url;
+      document.getElementById("img-el").style.display="block";
+      document.getElementById("img-placeholder").style.display="none";
+    }
+  } else {
+    ["eq-name","eq-brand","eq-model","eq-hp","eq-desc"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("eq-price").value="";
+    document.getElementById("img-el").style.display="none";
+    document.getElementById("img-placeholder").style.display="";
+  }
+  document.getElementById("add-modal").style.display="flex";
+}
+function closeAddModal(){document.getElementById("add-modal").style.display="none";}
+
+async function submitEquipment(){
+  const name=document.getElementById("eq-name").value.trim();
+  const price=document.getElementById("eq-price").value;
+  const errDiv=document.getElementById("add-err");
+  errDiv.style.display="none";
+  if(!name||!price){errDiv.textContent="Name and price are required.";errDiv.style.display="block";return;}
+
+  const payload={
+    name,type:document.getElementById("eq-type").value,
+    price_per_hour:Number(price),
+    brand:document.getElementById("eq-brand").value,
+    model:document.getElementById("eq-model").value,
+    hp:document.getElementById("eq-hp").value||0,
+    village:document.getElementById("eq-village").value,
+    mandal:document.getElementById("eq-mandal").value,
+    district:document.getElementById("eq-district").value,
+    state:document.getElementById("eq-state").value||"Telangana",
+    description:document.getElementById("eq-desc").value,
+  };
+  if(_imgBase64){payload.image_base64=_imgBase64;payload.image_ext=_imgExt;}
+
+  const editId=document.getElementById("editing-eq-id").value;
+  const res=editId
+    ? await Api.put(`/equipment/${editId}`,payload)
+    : await Api.post("/equipment/",payload);
+
+  if(res?.success){
+    Toast.success(editId?"Equipment updated!":"Equipment added! 🎉");
+    closeAddModal();loadMyEquipment();
+  } else {errDiv.textContent=res?.message||"Failed.";errDiv.style.display="block";}
+}
+
+async function loadMyEquipment(){
+  const res=await Api.get("/equipment/owner/mine");
+  const el=document.getElementById("eq-list");
+  document.getElementById("st-eq").textContent=res?.equipment?.length||0;
+  if(!res?.success||!res.equipment.length){
+    el.innerHTML=`<p style="color:var(--text-muted);grid-column:1/-1;">No equipment yet.
+      <button class="btn btn-primary btn-sm" onclick="openAddModal()">Add your first one!</button></p>`;
+    return;
+  }
+  el.innerHTML=res.equipment.map(eq=>`
+    <div class="card" style="padding:1rem;">
+      ${eq.image_url
+        ?`<div class="owner-eq-img"><img src="${eq.image_url}" alt="${eq.name}" loading="lazy" style="object-fit:contain;height:auto;max-height:260px;"/></div>`
+        :`<div class="owner-eq-img"><span style="font-size:3rem;">${TYPE_EMOJI[eq.type]||"🚜"}</span></div>`}
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.4rem;">
+        <span class="card-badge badge-blue" style="text-transform:capitalize;font-size:.72rem;">${eq.type.replace("_"," ")}</span>
+        <span class="availability-dot ${eq.availability?"dot-green":"dot-red"}"></span>
+      </div>
+      <div style="font-weight:600;margin-bottom:.2rem;">${eq.name}</div>
+      <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.2rem;">${eq.brand} ${eq.model}${eq.hp?" · "+eq.hp+"HP":""}</div>
+      <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.5rem;">📍 ${[eq.location?.village,eq.location?.mandal,eq.location?.district].filter(Boolean).join(", ")||"—"}</div>
+      <div style="font-weight:700;color:var(--primary);margin-bottom:.65rem;">${formatCurrency(eq.price_per_hour)}/hr</div>
+      <div style="display:flex;gap:.4rem;">
+        <button class="btn btn-sm btn-secondary" onclick="openAddModal(${JSON.stringify(eq).replace(/"/g,'&quot;')})">✏️ Edit</button>
+        <button class="btn btn-sm ${eq.availability?"btn-danger":"btn-primary"}" onclick="toggleAvail('${eq.id}',${!eq.availability})">
+          ${eq.availability?"🔴 Set Unavailable":"🟢 Set Available"}</button>
+        <button class="btn btn-sm btn-danger" onclick="delEq('${eq.id}')">🗑</button>
+      </div>
+    </div>`).join("");
+}
+
+async function toggleAvail(id,state){
+  const res=await Api.put(`/equipment/${id}`,{availability:state});
+  if(res?.success){Toast.success("Updated!");loadMyEquipment();}
+  else Toast.error(res?.message||"Failed.");
+}
+async function delEq(id){
+  if(!confirm("Delete this equipment?"))return;
+  const res=await Api.delete(`/equipment/${id}`);
+  if(res?.success){Toast.success("Deleted.");loadMyEquipment();}
+  else Toast.error(res?.message||"Failed.");
+}
+
+async function loadIncoming(){
+  const res=await Api.get("/bookings/incoming");
+  const el=document.getElementById("bk-list");
+  const bks=res?.bookings||[];
+  document.getElementById("st-pend").textContent=bks.filter(b=>b.status==="pending").length;
+  document.getElementById("st-act").textContent=bks.filter(b=>b.status==="in_progress").length;
+  document.getElementById("st-earn").textContent=formatCurrency(
+    bks.filter(b=>b.status==="completed").reduce((s,b)=>s+b.total_price,0)*0.95);
+  if(!bks.length){el.innerHTML=`<p style="color:var(--text-muted);">No bookings yet.</p>`;return;}
+  el.innerHTML=`<div class="table-wrap"><table>
+    <thead><tr><th>Farmer</th><th>Crop</th><th>Date</th><th>Hrs</th><th>Amount</th><th>Payment</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>${bks.map(b=>`<tr>
+      <td style="font-size:.82rem;">${b.farmer_id.slice(-6)}</td>
+      <td style="text-transform:capitalize;font-size:.82rem;">${b.crop_type}</td>
+      <td style="font-size:.82rem;">${formatDate(b.booking_date)}</td>
+      <td style="font-size:.82rem;">${b.hours_required}h</td>
+      <td style="font-size:.82rem;">${formatCurrency(b.total_price)}</td>
+      <td>${b.payment_status==="paid"?`<span class="card-badge badge-green" style="font-size:.72rem;">✅ Paid</span>`:`<span class="card-badge badge-yellow" style="font-size:.72rem;">Unpaid</span>`}</td>
+      <td>${statusBadge(b.status)}</td>
+      <td style="display:flex;gap:.3rem;flex-wrap:wrap;">
+        ${b.status==="pending"?`
+          <button class="btn btn-sm btn-primary" onclick="updStatus('${b.id}','confirmed')">✓ Accept</button>
+          <button class="btn btn-sm btn-danger"  onclick="updStatus('${b.id}','cancelled')">✕ Reject</button>`:""}
+        ${b.status==="confirmed"?`<button class="btn btn-sm btn-accent" onclick="updStatus('${b.id}','in_progress')">▶ Start</button>`:""}
+        ${b.status==="in_progress"?`
+          <button class="btn btn-sm btn-primary" onclick="updStatus('${b.id}','completed')">✓ Done</button>
+          <a href="/tracking?booking_id=${b.id}" class="btn btn-sm btn-outline">📍</a>`:""}
+      </td>
+    </tr>`).join("")}</tbody></table></div>`;
+}
+
+async function updStatus(id,status){
+  const res=await Api.put(`/bookings/${id}/status`,{status});
+  if(res?.success){Toast.success(res.message);loadIncoming();}
+  else Toast.error(res?.message||"Failed.");
+}
+
+async function loadRating(){
+  const res=await Api.get("/ratings/owner/summary");
+  if(res?.success) document.getElementById("st-rating").textContent=res.avg_rating?`${res.avg_rating}⭐`:"—";
+}
+
+async function loadHeatmap(){
+  const eq=document.getElementById("hm-eq")?.value||"tractor";
+  const u=Auth.getUser();
+  const el=document.getElementById("heatmap");
+  const res=await Api.get(`/ai/crop-demand?district=${encodeURIComponent(u?.district||"")}`);
+  if(!res?.success){el.innerHTML="";return;}
+  const colors={"High":"#ef4444","Moderate":"#f59e0b","Low":"#22c55e"};
+  el.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:.6rem;">
+    ${res.all_crops.map(c=>`
+      <div class="card" style="padding:.75rem 1rem;min-width:130px;border-left:4px solid ${colors[c.demand]};">
+        <div style="text-transform:capitalize;font-weight:600;font-size:.9rem;">${c.crop}</div>
+        <div style="font-size:.85rem;margin-top:.2rem;">${c.icon} ${c.demand}</div>
+        <div style="font-size:.72rem;color:var(--text-muted);">${Math.round(c.confidence*100)}% confidence</div>
+        <div style="font-size:.72rem;color:var(--text-muted);margin-top:.2rem;">📦 ${c.equipment_needed.join(", ")}</div>
+      </div>`).join("")}
+  </div>`;
+}
+</script>
+{% endblock %}

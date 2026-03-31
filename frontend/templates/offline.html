@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Offline — TractoNow{% endblock %}
+
+{% block content %}
+<div style="min-height:60vh;display:flex;align-items:center;justify-content:center;padding:2rem;">
+  <div style="text-align:center;max-width:420px;">
+    <div style="font-size:5rem;margin-bottom:1rem;">📡</div>
+    <h2 style="font-size:1.6rem;margin-bottom:.75rem;color:var(--primary-dark);">You're Offline</h2>
+    <p style="color:var(--text-muted);margin-bottom:1.5rem;line-height:1.7;">
+      No internet connection right now. Don't worry — any bookings you make
+      will be <strong>saved on your device</strong> and automatically sent
+      when you're back online.
+    </p>
+    <div class="alert alert-warning" style="text-align:left;margin-bottom:1.5rem;">
+      💡 <strong>Tip:</strong> You can still browse cached pages and queue bookings offline.
+    </div>
+    <button class="btn btn-primary btn-lg" onclick="window.location.reload()">
+      🔄 Try Again
+    </button>
+    <div style="margin-top:1rem;">
+      <a href="/" class="btn btn-outline">← Go Home</a>
+    </div>
+
+    <!-- Show pending queue count -->
+    <div id="pending-info" style="margin-top:1.5rem;color:var(--text-muted);font-size:.9rem;"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/pwa.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", async () => {
+    try {
+      const pending = await PWA.getQueued();
+      const el = document.getElementById("pending-info");
+      if (pending.length > 0) {
+        el.innerHTML = `
+          <span class="card-badge badge-yellow">
+            📋 ${pending.length} booking(s) queued — will sync when online
+          </span>`;
+      }
+    } catch(e) {}
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Rate Service — TractoNow{% endblock %}
+
+{% block content %}
+<div class="page-wrap container">
+
+  <div class="dashboard-header">
+    <h2>⭐ Rate Your Experience</h2>
+    <p>Your feedback helps other farmers choose the best equipment and owners.</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start;" class="grid-2">
+
+    <!-- ── Submit Rating ──────────────────────────────────────── -->
+    <div class="card">
+      <h3 class="card-title" style="margin-bottom:1.25rem;">📝 Submit a Rating</h3>
+
+      <!-- Booking selector -->
+      <div class="form-group">
+        <label class="form-label">Select Completed Booking</label>
+        <select id="booking-selector" class="form-control" onchange="onBookingSelected()">
+          <option value="">Loading your bookings…</option>
+        </select>
+      </div>
+
+      <!-- Booking mini-preview -->
+      <div id="booking-preview" style="display:none;background:#f9fafb;border-radius:var(--radius);
+           padding:.85rem;margin-bottom:1rem;font-size:.88rem;">
+      </div>
+
+      <form id="rating-form">
+        <input type="hidden" name="booking_id" id="booking-id-input">
+        <input type="hidden" name="rating"     id="rating-value" value="0">
+
+        <!-- Hidden field to load equipment ratings -->
+        <input type="hidden" id="eq-id-hidden" value="">
+
+        <div class="form-group">
+          <label class="form-label">Your Rating *</label>
+          <div id="star-rating" class="star-rating" style="margin:.25rem 0;"></div>
+          <p class="form-hint">Tap a star to rate</p>
+        </div>
+
+        <div id="review-section" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">Write a Review (optional)</label>
+            <textarea name="review" class="form-control" rows="3"
+                      placeholder="How was the equipment condition? Was the owner punctual?"></textarea>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full btn-submit" disabled>
+          ⭐ Submit Rating
+        </button>
+      </form>
+    </div>
+
+    <!-- ── Existing Ratings ──────────────────────────────────── -->
+    <div>
+      <!-- Rating summary -->
+      <div class="card" style="margin-bottom:1.25rem;">
+        <h3 class="card-title" style="margin-bottom:1rem;">📊 Equipment Ratings</h3>
+        <div id="rating-summary">
+          <p class="card-meta">Select a booking to see equipment ratings.</p>
+        </div>
+      </div>
+
+      <!-- Reviews list -->
+      <div>
+        <h4 style="margin-bottom:.75rem;font-size:1rem;">Recent Reviews</h4>
+        <div id="ratings-list">
+          <p class="card-meta">Select a booking above to load reviews.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/rating.js"></script>
+<script>
+  // Load farmer's completed bookings into the selector
+  document.addEventListener("DOMContentLoaded", async () => {
+    const res = await Api.get("/bookings/my");
+    const sel = document.getElementById("booking-selector");
+    if (!res?.success) { sel.innerHTML = `<option>Could not load bookings</option>`; return; }
+
+    const completed = res.bookings.filter(b => b.status === "completed");
+    if (!completed.length) {
+      sel.innerHTML = `<option value="">No completed bookings to rate</option>`;
+      return;
+    }
+    sel.innerHTML = `<option value="">— Choose a booking —</option>` +
+      completed.map(b =>
+        `<option value="${b.id}" data-eq="${b.equipment_id}" data-date="${b.booking_date}"
+                 data-crop="${b.crop_type}" data-price="${b.total_price}">
+          ${b.crop_type} — ${formatDate(b.booking_date)} — ${formatCurrency(b.total_price)}
+        </option>`
+      ).join("");
+  });
+
+  function onBookingSelected() {
+    const sel    = document.getElementById("booking-selector");
+    const opt    = sel.options[sel.selectedIndex];
+    const bid    = sel.value;
+    const eqId   = opt?.dataset?.eq || "";
+    const submitBtn = document.querySelector(".btn-submit");
+
+    document.getElementById("booking-id-input").value = bid;
+    document.getElementById("eq-id-hidden").value     = eqId;
+
+    if (!bid) {
+      document.getElementById("booking-preview").style.display = "none";
+      submitBtn.disabled = true;
+      return;
+    }
+
+    // Show mini preview
+    const preview = document.getElementById("booking-preview");
+    preview.style.display = "block";
+    preview.innerHTML = `
+      <strong>${opt.dataset.crop?.toUpperCase()}</strong> &nbsp;•&nbsp;
+      ${formatDate(opt.dataset.date)} &nbsp;•&nbsp;
+      <span style="color:var(--primary);font-weight:600;">${formatCurrency(opt.dataset.price)}</span>
+    `;
+
+    submitBtn.disabled = false;
+
+    // Load existing ratings for this equipment
+    if (eqId) loadEquipmentRatings();
+  }
+</script>
+{% endblock %}

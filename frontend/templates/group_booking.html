@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+{% block title %}Group Booking{% endblock %}
+{% block content %}
+<div class="page-wrap container">
+  <div class="dashboard-header">
+    <h2>👥 Group Booking</h2>
+    <p>Create a group, invite farmers via link, share equipment cost automatically.</p>
+  </div>
+
+  <!-- Join via link alert -->
+  <div id="join-alert" style="display:none;" class="alert alert-info"></div>
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+    <button class="btn btn-primary btn-sm"  id="tab-browse-btn" onclick="switchTab('browse')">🔍 Browse Open Groups</button>
+    <button class="btn btn-outline btn-sm"  id="tab-create-btn" onclick="switchTab('create')">➕ Create Group</button>
+    <button class="btn btn-secondary btn-sm" id="tab-my-btn"    onclick="switchTab('my')">📋 My Groups</button>
+  </div>
+
+  <!-- ── Browse Groups ───────────────────────────────────────────── -->
+  <div id="tab-browse">
+    <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
+      <input type="text" id="dist-filter" class="form-control" placeholder="Filter by district…"
+             style="max-width:220px;" oninput="loadOpenGroups()"/>
+      <button class="btn btn-secondary btn-sm" onclick="loadOpenGroups()">🔄 Refresh</button>
+    </div>
+    <div id="groups-list" class="grid-2">
+      <div class="spinner" style="margin:2rem auto;display:block;"></div>
+    </div>
+  </div>
+
+  <!-- ── My Groups ──────────────────────────────────────────────── -->
+  <div id="tab-my" style="display:none;">
+    <div id="my-groups-list">
+      <div class="spinner" style="margin:2rem auto;display:block;"></div>
+    </div>
+  </div>
+
+  <!-- ── Create Group ───────────────────────────────────────────── -->
+  <div id="tab-create" style="display:none;">
+    <div class="card" style="max-width:580px;">
+      <h3 class="card-title" style="margin-bottom:1.25rem;">🚜 Create a Group Booking</h3>
+
+      <div id="share-box" class="alert alert-success" style="display:none;word-break:break-all;"></div>
+
+      <div class="form-group">
+        <label class="form-label">Group Name</label>
+        <input type="text" id="g-name" class="form-control" placeholder="e.g. Yellandu Rice Farmers"/>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;">
+        <div class="form-group">
+          <label class="form-label">Equipment Type</label>
+          <select id="g-type" class="form-control" onchange="filterGEquip()">
+            <option value="">All Types</option>
+            <option value="tractor">🚜 Tractor</option><option value="harvester">🌾 Harvester</option>
+            <option value="rotavator">⚙️ Rotavator</option><option value="seed_drill">🌱 Seed Drill</option>
+            <option value="sprayer">💧 Sprayer</option><option value="cultivator">🔧 Cultivator</option>
+            <option value="plough">🪵 Plough</option><option value="thresher">🌀 Thresher</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Crop Type *</label>
+          <select id="g-crop" class="form-control" required>
+            <option value="">Select crop</option>
+            <option value="rice">🌾 Rice</option><option value="wheat">🌿 Wheat</option>
+            <option value="cotton">🌸 Cotton</option><option value="sugarcane">🎋 Sugarcane</option>
+            <option value="maize">🌽 Maize</option><option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Select Equipment *</label>
+        <select id="g-eq" class="form-control" onchange="updateGCost()" required>
+          <option value="">Loading equipment…</option>
+        </select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.85rem;">
+        <div class="form-group">
+          <label class="form-label">Date *</label>
+          <input type="date" id="g-date" class="form-control" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hours *</label>
+          <input type="number" id="g-hrs" class="form-control" min="1" max="12" value="4"
+                 oninput="updateGCost()" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max Farmers (2–5)</label>
+          <input type="number" id="g-max" class="form-control" min="2" max="5" value="3"
+                 oninput="updateGCost()"/>
+        </div>
+      </div>
+
+      <div id="g-cost" class="alert alert-info" style="display:none;margin-bottom:1rem;"></div>
+
+      <button class="btn btn-primary btn-full" onclick="createGroup()">👥 Create Group</button>
+    </div>
+
+    <div class="card" style="max-width:580px;margin-top:1.5rem;background:#f0fdf4;border-color:#86efac;">
+      <h4 style="margin-bottom:.65rem;color:var(--primary-dark);">💡 How It Works</h4>
+      <ol style="padding-left:1.25rem;font-size:.88rem;line-height:2.1;">
+        <li>Create a group — give it a name and pick equipment + date</li>
+        <li>Copy the <strong>join link</strong> and share via WhatsApp / phone</li>
+        <li>Farmers join → cost splits automatically for everyone</li>
+        <li>Any farmer can <strong>leave anytime</strong> before booking date</li>
+        <li>When group is full, the booking is confirmed for all 🎉</li>
+      </ol>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const USER = Auth.getUser();
+
+document.addEventListener("DOMContentLoaded", async () => {
+  redirectIfNotLoggedIn();
+  loadEquipmentSelect();
+  loadOpenGroups();
+  // Set min booking date to tomorrow
+  const tmr = new Date(); tmr.setDate(tmr.getDate() + 1);
+  document.getElementById("g-date").min = tmr.toISOString().split("T")[0];
+  // Auto-join from URL ?join=groupId
+  const joinId = new URLSearchParams(window.location.search).get("join");
+  if (joinId) autoJoin(joinId);
+});
+
+function switchTab(tab) {
+  ["browse","create","my"].forEach(t => {
+    document.getElementById(`tab-${t}`).style.display           = t===tab ? "block":"none";
+    document.getElementById(`tab-${t}-btn`).className           =
+      t===tab ? "btn btn-primary btn-sm" : "btn btn-outline btn-sm";
+  });
+  if (tab === "my") loadMyGroups();
+}
+
+// ── Auto join from link ────────────────────────────────────────────────────────
+async function autoJoin(groupId) {
+  const res = await Api.get(`/groups/${groupId}`);
+  const el  = document.getElementById("join-alert");
+  if (!res?.success) { el.textContent = "Invalid or expired group link."; el.style.display="block"; return; }
+  const g = res.group;
+  el.innerHTML = `📨 You were invited to join <strong>"${g.group_name||"Group"}"</strong> —
+    ${g.crop_type}, ${formatDate(g.booking_date)},
+    <strong style="color:var(--primary);">${formatCurrency(g.per_farmer_share)}/farmer</strong>.
+    <button class="btn btn-primary btn-sm" style="margin-left:.75rem;"
+      onclick="joinGroup('${groupId}')">✅ Join Now</button>`;
+  el.style.display = "block";
+}
+
+// ── Load equipment into select ────────────────────────────────────────────────
+async function loadEquipmentSelect(type="") {
+  const q   = type ? `/equipment/?available=true&type=${type}` : "/equipment/?available=true";
+  const res = await Api.get(q);
+  const sel = document.getElementById("g-eq");
+  if (!res?.success || !res.equipment.length) {
+    sel.innerHTML = `<option value="">No equipment available in your area</option>`;
+    return;
+  }
+  sel.innerHTML = `<option value="">— Choose equipment —</option>` +
+    res.equipment.map(e => `<option value="${e.id}" data-price="${e.price_per_hour}">
+      ${e.name} — ${formatCurrency(e.price_per_hour)}/hr (${e.location?.district||"?"})</option>`
+    ).join("");
+}
+function filterGEquip() { loadEquipmentSelect(document.getElementById("g-type").value); }
+
+function updateGCost() {
+  const sel   = document.getElementById("g-eq");
+  const opt   = sel.options[sel.selectedIndex];
+  const price = parseFloat(opt?.dataset?.price || 0);
+  const hrs   = Number(document.getElementById("g-hrs")?.value || 0);
+  const maxF  = Number(document.getElementById("g-max")?.value || 1);
+  const el    = document.getElementById("g-cost");
+  if (!price || !hrs) { el.style.display = "none"; return; }
+  const total = price * hrs;
+  const share = (total / maxF).toFixed(2);
+  el.innerHTML = `💰 Total: <strong>${formatCurrency(total)}</strong> &nbsp;·&nbsp;
+    Per farmer (${maxF}): <strong style="color:var(--primary);">${formatCurrency(share)}</strong>`;
+  el.style.display = "block";
+}
+
+// ── Create group ───────────────────────────────────────────────────────────────
+async function createGroup() {
+  const eqId = document.getElementById("g-eq").value;
+  const crop  = document.getElementById("g-crop").value;
+  const date  = document.getElementById("g-date").value;
+  const hrs   = document.getElementById("g-hrs").value;
+  const max   = document.getElementById("g-max").value;
+  const gname = document.getElementById("g-name").value.trim();
+  if (!eqId || !crop || !date || !hrs) { Toast.error("Fill all required fields."); return; }
+  const res = await Api.post("/groups/", {
+    group_name: gname, equipment_id: eqId, crop_type: crop,
+    booking_date: date, hours_required: Number(hrs), max_farmers: Number(max)
+  });
+  if (res?.success) {
+    const link = window.location.origin + res.join_link;
+    const box  = document.getElementById("share-box");
+    box.innerHTML = `✅ Group created!<br>
+      <strong>Share this join link with farmers:</strong><br>
+      <code style="font-size:.82rem;word-break:break-all;">${link}</code>
+      <button class="btn btn-sm btn-outline" style="margin:.5rem 0 0;"
+        onclick="navigator.clipboard.writeText('${link}');Toast.success('Link copied!');">
+        📋 Copy Link
+      </button><br>
+      <small style="color:var(--text-muted);">Per farmer share: ${formatCurrency(res.per_farmer)}</small>`;
+    box.style.display = "block";
+    loadOpenGroups();
+  } else Toast.error(res?.message || "Could not create group.");
+}
+
+// ── Open groups list ───────────────────────────────────────────────────────────
+async function loadOpenGroups() {
+  const d   = document.getElementById("dist-filter")?.value || "";
+  const res = await Api.get(`/groups/open${d?"?district="+encodeURIComponent(d):""}`);
+  const el  = document.getElementById("groups-list");
+  if (!res?.success || !res.groups.length) {
+    el.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--text-muted);grid-column:1/-1;">
+      <p style="font-size:2rem;">👥</p>
+      <p>No open groups yet. Be the first!</p>
+      <button class="btn btn-primary btn-sm" style="margin-top:.75rem;"
+        onclick="switchTab('create')">Create First Group</button></div>`;
+    return;
+  }
+  el.innerHTML = res.groups.map(g => renderGroupCard(g)).join("");
+}
+
+// ── My groups ──────────────────────────────────────────────────────────────────
+async function loadMyGroups() {
+  const res = await Api.get("/groups/open");
+  const el  = document.getElementById("my-groups-list");
+  if (!res?.success) { el.innerHTML = "<p style='color:var(--text-muted);'>No groups found.</p>"; return; }
+  const myGroups = (res.groups || []).filter(g =>
+    g.members.includes(USER?.id || "")
+  );
+  if (!myGroups.length) {
+    el.innerHTML = `<p style="color:var(--text-muted);">You haven't joined any groups yet.
+      <button class="btn btn-primary btn-sm" onclick="switchTab('browse')">Browse Groups</button></p>`;
+    return;
+  }
+  el.innerHTML = `<div class="grid-2">${myGroups.map(g => renderGroupCard(g)).join("")}</div>`;
+}
+
+// ── Render a group card ────────────────────────────────────────────────────────
+function renderGroupCard(g) {
+  const uid       = USER?.id || "";
+  const isMember  = g.members.includes(uid);
+  const isCreator = g.creator_id === uid;
+  const isFull    = g.status === "full";
+  const pct       = Math.round((g.member_count / g.max_farmers) * 100);
+  const link      = `${window.location.origin}/group-booking?join=${g.id}`;
+
+  return `<div class="card" style="border-left:3px solid ${isFull?"#ef4444":"#16a34a"};">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.65rem;">
+      <div>
+        <div style="font-weight:700;font-size:1rem;">${g.group_name || "Group"}</div>
+        <div style="font-size:.78rem;color:var(--text-muted);margin-top:.15rem;text-transform:capitalize;">
+          ${g.crop_type} · ${g.equipment_type.replace("_"," ")} · ${g.hours_required}hrs
+        </div>
+        <div style="font-size:.78rem;color:var(--text-muted);">📅 ${formatDate(g.booking_date)}</div>
+        <div style="font-size:.78rem;color:var(--text-muted);">📍 ${g.district||"—"}</div>
+      </div>
+      ${statusBadge(g.status)}
+    </div>
+
+    <!-- Progress -->
+    <div style="margin-bottom:.75rem;">
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.3rem;">
+        <span>👨‍🌾 ${g.member_count}/${g.max_farmers} farmers</span>
+        <span style="color:var(--primary);font-weight:600;">${pct}%</span>
+      </div>
+      <div style="background:var(--border);border-radius:99px;height:8px;overflow:hidden;">
+        <div style="background:${isFull?"#ef4444":"#16a34a"};height:100%;border-radius:99px;width:${pct}%;"></div>
+      </div>
+    </div>
+
+    <!-- Members -->
+    ${g.member_details && g.member_details.length ? `
+    <div style="background:#f9fafb;border-radius:var(--radius);padding:.65rem;margin-bottom:.75rem;font-size:.8rem;">
+      <div style="font-weight:600;margin-bottom:.35rem;color:var(--text-muted);">Members:</div>
+      ${g.member_details.map((m, i) => `
+        <div style="display:flex;gap:.4rem;align-items:center;padding:.1rem 0;">
+          <span>${i===0?"👑":"👤"}</span>
+          <span style="font-weight:${i===0?"600":"400"};">${m.name}</span>
+          ${i===0?"<span style='font-size:.72rem;color:var(--primary);'>(creator)</span>":""}
+          ${m.village?`<span style='color:var(--text-muted);'>· ${m.village}</span>`:""}
+        </div>`).join("")}
+    </div>` : ""}
+
+    <!-- Price + Booking option -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:.5rem;">
+      <div>
+        <div style="font-size:1.1rem;font-weight:700;color:var(--primary);">
+          ${formatCurrency(g.per_farmer_share)}<span style="font-size:.78rem;font-weight:400;color:var(--text-muted);"> /farmer</span>
+        </div>
+        <div style="font-size:.75rem;color:var(--text-muted);">Total: ${formatCurrency(g.base_price)}</div>
+      </div>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+        <!-- Join / Leave / Cancel -->
+        ${!isMember && !isFull
+          ? `<button class="btn btn-primary btn-sm" onclick="joinGroup('${g.id}')">➕ Join</button>` : ""}
+        ${isMember && !isCreator
+          ? `<button class="btn btn-secondary btn-sm" onclick="leaveGroup('${g.id}')">🚪 Leave</button>` : ""}
+        ${isCreator
+          ? `<button class="btn btn-danger btn-sm" onclick="cancelGroup('${g.id}')">🗑 Cancel</button>` : ""}
+        <!-- Share link -->
+        <button class="btn btn-outline btn-sm"
+          onclick="navigator.clipboard.writeText('${link}');Toast.success('Join link copied!');"
+          title="Copy join link">🔗 Share</button>
+        <!-- Book This Group (if member) -->
+        ${isMember
+          ? `<a href="/booking" class="btn btn-accent btn-sm">📅 Book Equipment</a>` : ""}
+        ${isMember ? `<span class="card-badge badge-green">✓ Joined</span>` : ""}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+async function joinGroup(id) {
+  const res = await Api.post(`/groups/${id}/join`, {});
+  if (res?.success) {
+    Toast.success(`Joined! Your share: ${formatCurrency(res.your_share)} 🎉`);
+    document.getElementById("join-alert").style.display = "none";
+    loadOpenGroups();
+  } else Toast.error(res?.message || "Could not join.");
+}
+async function leaveGroup(id) {
+  if (!confirm("Leave this group?")) return;
+  const res = await Api.post(`/groups/${id}/leave`, {});
+  if (res?.success) { Toast.success("Left the group."); loadOpenGroups(); }
+  else Toast.error(res?.message || "Could not leave.");
+}
+async function cancelGroup(id) {
+  if (!confirm("Cancel and delete this group? This cannot be undone.")) return;
+  const res = await Api.post(`/groups/${id}/cancel`, {});
+  if (res?.success) { Toast.success("Group cancelled."); loadOpenGroups(); }
+  else Toast.error(res?.message || "Could not cancel.");
+}
+</script>
+{% endblock %}

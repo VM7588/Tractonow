@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}About TractoNow{% endblock %}
+{% block content %}
+{% block show_video %}{% endblock %}
+<style>
+body {
+  background: url("{{ url_for('static', filename='images/machines.png') }}") no-repeat center center fixed;
+  background-size: cover;
+}
+
+/* Dark overlay */
+body::before {
+  display: none;
+}
+
+/* 🔥 Fix headings (keep green theme) */
+h1 {
+  color: #22c55e !important; /* green */
+}
+h2, h3, h4 {
+  color: #16a34a !important;
+}
+
+/* Paragraph text */
+p {
+  color: #e5e7eb !important; /* light gray for readability */
+}
+
+/* 🔥 Fix WHITE BOXES (cards) */
+.card {
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: #111 !important;
+  backdrop-filter: blur(8px);
+}
+
+/* Card text */
+.card p,
+.card h4 {
+  color: #111 !important;
+}
+
+/* 🔥 Mission box fix */
+.card[style*="linear-gradient"] {
+  background: rgba(255,255,255,0.9) !important;
+  color: #111 !important;
+}
+
+/* Buttons (green consistency) */
+.btn-primary {
+  background-color: #22c55e !important;
+  border: none;
+}
+
+.btn-outline {
+  border: 2px solid #22c55e !important;
+  color: #22c55e !important;
+}
+
+.btn-outline:hover {
+  background: #22c55e !important;
+  color: #fff !important;
+}
+</style>
+<div class="container page-wrap">
+
+  <!-- Hero -->
+  <div style="text-align:center;padding:3rem 1rem 2rem;">
+    <div style="font-size:4rem;margin-bottom:1rem;">🚜</div>
+    <h1 style="font-size:2.2rem;font-weight:800;color:var(--primary-dark);margin-bottom:.75rem;">TractoNow</h1>
+    <p style="font-size:1.15rem;color:var(--text-muted);max-width:580px;margin:0 auto 1.5rem;">
+      Smart Agri Equipment Sharing Platform — connecting farmers with equipment owners across rural India.
+    </p>
+    <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;">
+      <a href="/register" class="btn btn-primary btn-lg">👨‍🌾 Get Started</a>
+      <a href="/booking"  class="btn btn-outline btn-lg">🔍 Browse Equipment</a>
+    </div>
+  </div>
+
+  <!-- Mission -->
+  <div class="card" style="margin-bottom:2rem;background:linear-gradient(135deg,#f0fdf4,#fff);border-left:4px solid var(--primary);">
+    <h2 style="font-size:1.4rem;margin-bottom:.75rem;">🎯 Our Mission</h2>
+    <p style="line-height:1.8;color:var(--text-muted);">
+      TractoNow was built to solve a real problem faced by farmers across Telangana and Andhra Pradesh —
+      affordable, timely access to agricultural equipment. We connect farmers with local equipment owners
+      through a smart platform powered by AI demand prediction, live GPS tracking, and group booking —
+      making modern AgriTech accessible to every farmer, regardless of technical knowledge.
+    </p>
+  </div>
+
+  <!-- Key Features -->
+  <h2 style="font-size:1.4rem;margin-bottom:1.25rem;">⚡ Key Features</h2>
+  <div class="grid-3" style="margin-bottom:2.5rem;">
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2rem;margin-bottom:.5rem;">🤖</div>
+      <h4 class="card-title">AI Demand Prediction</h4>
+      <p class="card-meta">Machine Learning predicts high-demand seasons so farmers can book early and save money.</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2rem;margin-bottom:.5rem;">👥</div>
+      <h4 class="card-title">Group Booking</h4>
+      <p class="card-meta">Multiple farmers share one equipment — cost splits automatically. A unique feature that reduces individual burden.</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2rem;margin-bottom:.5rem;">📍</div>
+      <h4 class="card-title">Live GPS Tracking</h4>
+      <p class="card-meta">Real-time equipment location with ETA. No more waiting and wondering where your tractor is.</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2rem;margin-bottom:.5rem;">🌦️</div>
+      <h4 class="card-title">Weather Intelligence</h4>
+      <p class="card-meta">5-day weather forecast based on your registered village/district with farming safety advice.</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2rem;margin-bottom:.5rem;">🗣️</div>
+      <h4 class="card-title">Multilingual Voice</h4>
+      <p class="card-meta">Telugu, Hindi, English voice input — designed for farmers who are not tech-savvy.</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2rem;margin-bottom:.5rem;">💳</div>
+      <h4 class="card-title">Easy Payments</h4>
+      <p class="card-meta">UPI, Card and Net Banking support with booking history and transaction tracking.</p>
+    </div>
+  </div>
+
+  <!-- Tech Stack -->
+  <div class="card" style="margin-bottom:2.5rem;">
+    <h2 style="font-size:1.4rem;margin-bottom:1rem;">🛠️ Technology Stack</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:.6rem;">
+      {% for tech in [
+        ("Python","#3776AB"),("Flask","#000000"),("MongoDB","#47A248"),
+        ("Scikit-learn","#F7931E"),("RandomForest ML","#FF6B35"),
+        ("JWT Auth","#D63AFF"),("OpenWeatherMap","#E35E2D"),
+        ("Leaflet.js","#199900"),("HTML5","#E34F26"),
+        ("CSS3","#1572B6"),("JavaScript","#F7DF1E"),
+        ("PWA","#5A0FC8"),("Service Worker","#0099FF")
+      ] %}
+      <span style="background:{{ tech[1] }}18;color:{{ tech[1] }};border:1px solid {{ tech[1] }}40;border-radius:99px;padding:.25rem .75rem;font-size:.82rem;font-weight:600;">{{ tech[0] }}</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Team -->
+  <h2 style="font-size:1.4rem;margin-bottom:1.25rem;">👨‍💻 Development Team</h2>
+  <div class="grid-2" style="margin-bottom:2.5rem;max-width:700px;">
+
+    <div class="card" style="display:flex;align-items:center;gap:1rem;padding:1.25rem;">
+      <div style="width:56px;height:56px;background:linear-gradient(135deg,#16a34a,#15803d);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">👨‍💻</div>
+      <div>
+        <div style="font-weight:700;font-size:1rem;">M. Vijay</div>
+        <div style="font-size:.82rem;color:var(--text-muted);margin-top:.15rem;">Backend Developer</div>
+        <div style="font-size:.78rem;color:var(--text-muted);">Flask · MongoDB · ML Models</div>
+      </div>
+    </div>
+
+    <div class="card" style="display:flex;align-items:center;gap:1rem;padding:1.25rem;">
+      <div style="width:56px;height:56px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">👨‍💻</div>
+      <div>
+        <div style="font-weight:700;font-size:1rem;">T. Yukthesh</div>
+        <div style="font-size:.82rem;color:var(--text-muted);margin-top:.15rem;">Frontend Developer</div>
+        <div style="font-size:.78rem;color:var(--text-muted);">HTML · CSS · JavaScript · UI/UX</div>
+      </div>
+    </div>
+
+    <div class="card" style="display:flex;align-items:center;gap:1rem;padding:1.25rem;">
+      <div style="width:56px;height:56px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">👨‍💻</div>
+      <div>
+        <div style="font-weight:700;font-size:1rem;">P. Sravan</div>
+        <div style="font-size:.82rem;color:var(--text-muted);margin-top:.15rem;">AI/ML Developer</div>
+        <div style="font-size:.78rem;color:var(--text-muted);">Scikit-learn · Demand Prediction · Data</div>
+      </div>
+    </div>
+
+    <div class="card" style="display:flex;align-items:center;gap:1rem;padding:1.25rem;">
+      <div style="width:56px;height:56px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">👨‍💻</div>
+      <div>
+        <div style="font-weight:700;font-size:1rem;">A. Srinivas</div>
+        <div style="font-size:.82rem;color:var(--text-muted);margin-top:.15rem;">Full Stack Developer</div>
+        <div style="font-size:.78rem;color:var(--text-muted);">API Design · GPS Tracking · PWA</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Stats -->
+  <div style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:var(--radius-lg);padding:2rem;color:#fff;text-align:center;margin-bottom:2rem;">
+    <h3 style="margin-bottom:1.25rem;font-size:1.3rem;opacity:.9;">Platform at a Glance</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1.5rem;">
+      <div><div style="font-size:2rem;font-weight:800;">8+</div><div style="opacity:.85;font-size:.9rem;">Equipment Types</div></div>
+      <div><div style="font-size:2rem;font-weight:800;">13</div><div style="opacity:.85;font-size:.9rem;">API Endpoints</div></div>
+      <div><div style="font-size:2rem;font-weight:800;">3</div><div style="opacity:.85;font-size:.9rem;">Languages Supported</div></div>
+      <div><div style="font-size:2rem;font-weight:800;">85%</div><div style="opacity:.85;font-size:.9rem;">ML Model Accuracy</div></div>
+      <div><div style="font-size:2rem;font-weight:800;">5</div><div style="opacity:.85;font-size:.9rem;">Day Weather Forecast</div></div>
+    </div>
+  </div>
+
+  <div style="text-align:center;color:var(--text-muted);font-size:.9rem;padding-bottom:1rem;">
+    Made with ❤️ for rural India 🇮🇳 &nbsp;·&nbsp; TractoNow v2.0 &nbsp;·&nbsp; 2024
+  </div>
+</div>
+{% endblock %}

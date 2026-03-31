@@ -1,0 +1,498 @@
+{% extends "base.html" %}
+{% block title %}Live Tracking{% endblock %}
+
+{% block head_extra %}
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<!-- Leaflet Routing Machine CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"/>
+<style>
+  #map {
+    height: 460px; width: 100%;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    z-index: 1;
+  }
+  /* Direction steps panel */
+  .steps-panel {
+    max-height: 260px; overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #fff;
+  }
+  .step-row {
+    display: flex; align-items: center; gap: .75rem;
+    padding: .6rem .9rem;
+    border-bottom: 1px solid var(--border);
+    font-size: .86rem;
+  }
+  .step-row:last-child { border-bottom: none; }
+  .step-icon {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--primary); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .85rem; flex-shrink: 0;
+  }
+  .step-active { background: #f0fdf4; }
+  .info-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+  }
+  .info-box {
+    background: #fff; border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .85rem; text-align: center;
+  }
+  .info-box .val { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+  .info-box .lbl { font-size: .75rem; color: var(--text-muted); margin-top: .2rem; }
+  .gps-btn-active { background: #22c55e !important; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.4)} 50%{box-shadow:0 0 0 8px rgba(34,197,94,0)} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap container">
+
+  <div class="dashboard-header">
+    <h2>📍 Live Equipment Tracking</h2>
+    <p>Real-time GPS with road-based routing and turn-by-turn directions.</p>
+  </div>
+
+  <!-- Status strip -->
+  <div style="display:flex;gap:.6rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
+    <span id="badge-sim"  class="alert alert-warning"
+      style="display:none;padding:.3rem .8rem;margin:0;font-size:.82rem;">
+      🔵 No GPS yet — set your field location below
+    </span>
+    <span id="badge-real" class="alert alert-success"
+      style="display:none;padding:.3rem .8rem;margin:0;font-size:.82rem;">
+      🟢 Live GPS — updating every 5 sec
+    </span>
+    <span id="badge-route" class="alert alert-info"
+      style="display:none;padding:.3rem .8rem;margin:0;font-size:.82rem;">
+      🗺️ Real road route loaded
+    </span>
+  </div>
+
+  <!-- Map -->
+  <div class="card" style="padding:1rem;margin-bottom:1.25rem;">
+    <div id="map"></div>
+  </div>
+
+  <!-- Info panel -->
+  <div class="info-panel" style="margin-bottom:1.25rem;">
+    <div class="info-box">
+      <div class="val" id="eta-time">—</div>
+      <div class="lbl">⏱ ETA</div>
+    </div>
+    <div class="info-box">
+      <div class="val" id="road-dist">—</div>
+      <div class="lbl">🛣️ Road Distance</div>
+    </div>
+    <div class="info-box">
+      <div class="val" id="spd">—</div>
+      <div class="lbl">🚀 Speed</div>
+    </div>
+    <div class="info-box">
+      <div class="val" id="accuracy-val">—</div>
+      <div class="lbl">🎯 GPS Accuracy</div>
+    </div>
+    <div class="info-box">
+      <div class="val" id="upd">—</div>
+      <div class="lbl">🕐 Updated</div>
+    </div>
+  </div>
+
+  <!-- Action buttons -->
+  <div style="display:flex;gap:.65rem;flex-wrap:wrap;margin-bottom:1.5rem;">
+    <!-- Owner: GPS sharing -->
+    <button id="gps-start" class="btn btn-primary" style="display:none;">
+      📡 Start Sharing GPS
+    </button>
+    <button id="gps-stop" class="btn btn-danger" style="display:none;">
+      ⏹ Stop GPS
+    </button>
+    <!-- Farmer: Set field location -->
+    <button id="set-dest-btn" class="btn btn-outline" style="display:none;"
+      onclick="setMyFieldLocation()">
+      📌 Set My Field as Destination
+    </button>
+    <button class="btn btn-secondary" onclick="refreshNow()">🔄 Refresh</button>
+    <a href="javascript:history.back()" class="btn btn-outline">← Back</a>
+  </div>
+
+  <!-- Turn-by-turn directions -->
+  <div class="section">
+    <h3 style="margin-bottom:.75rem;">🗺️ Turn-by-Turn Directions</h3>
+    <div id="steps-container">
+      <div class="steps-panel">
+        <div class="step-row" style="color:var(--text-muted);">
+          <div class="step-icon">ℹ</div>
+          <span>Directions will appear once GPS tracking starts.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Booking summary -->
+  <div class="card" style="max-width:480px;margin-top:1.5rem;">
+    <h4 class="card-title">📋 Booking Summary</h4>
+    <div id="bk-sum"><div class="spinner" style="margin:1rem auto;display:block;"></div></div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  TractoNow — Real-Time Tracking with Road Routing
+//  Uses Leaflet + OSRM (free, no API key needed)
+// ═══════════════════════════════════════════════════════════
+
+let _map         = null;
+let _equipMarker = null;   // Moving tractor
+let _destMarker  = null;   // Farmer's field
+let _userMarker  = null;   // Farmer's live position (if sharing)
+let _routeLayer  = null;   // Road route polyline
+let _pathLayer   = null;   // Traveled path
+let _pollInt     = null;   // Server poll interval
+let _gpsInt      = null;   // GPS send interval
+let _bkId        = null;
+let _lastLat     = null, _lastLng = null;
+let _destLat     = null, _destLng = null;
+let _currentStep = 0;
+
+// Default center (Yellandu, Telangana)
+const DEF_LAT = 17.58, DEF_LNG = 80.64;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+  redirectIfNotLoggedIn();
+  _bkId = new URLSearchParams(window.location.search).get("booking_id");
+  if (!_bkId) { showErr("No booking ID. Please go back and click Track."); return; }
+
+  setTimeout(initMap, 150);
+  loadBookingSummary();
+  initButtons();
+
+  // Start polling every 5s
+  _pollInt = setInterval(poll, 5000);
+  poll(); // immediate first poll
+});
+
+// ── Map init ──────────────────────────────────────────────────────────────────
+function initMap() {
+  _map = L.map("map", { zoomControl: true, attributionControl: true })
+          .setView([DEF_LAT, DEF_LNG], 13);
+
+  // OpenStreetMap tiles
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '© <a href="https://www.openstreetmap.org">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  }).addTo(_map);
+
+  // Tractor marker (equipment)
+  _equipMarker = L.marker([DEF_LAT, DEF_LNG], {
+    icon: L.divIcon({
+      html: `<div style="
+        background:#16a34a;color:#fff;border-radius:50%;
+        width:42px;height:42px;display:flex;align-items:center;
+        justify-content:center;font-size:1.4rem;
+        box-shadow:0 3px 10px rgba(0,0,0,.35);
+        border:2px solid #fff;">🚜</div>`,
+      className: "",
+      iconSize: [42, 42],
+      iconAnchor: [21, 21]
+    }),
+    zIndexOffset: 1000
+  }).addTo(_map).bindPopup("<b>Equipment Location</b><br>Owner's tractor");
+
+  // Destination marker (farmer's field)
+  _destMarker = L.marker([DEF_LAT + 0.02, DEF_LNG + 0.02], {
+    icon: L.divIcon({
+      html: `<div style="
+        background:#ef4444;color:#fff;border-radius:50% 50% 50% 0;
+        width:36px;height:36px;display:flex;align-items:center;
+        justify-content:center;font-size:1.2rem;
+        box-shadow:0 3px 10px rgba(0,0,0,.35);
+        border:2px solid #fff;transform:rotate(-45deg);">
+        <span style="transform:rotate(45deg);">🌾</span></div>`,
+      className: "",
+      iconSize: [36, 44],
+      iconAnchor: [18, 44]
+    })
+  }).addTo(_map).bindPopup("<b>Your Field</b><br>Destination");
+
+  // Traveled path
+  _pathLayer = L.polyline([], {
+    color: "#16a34a", weight: 4, opacity: 0.7, dashArray: null
+  }).addTo(_map);
+}
+
+// ── Poll server ───────────────────────────────────────────────────────────────
+async function poll() {
+  const res = await Api.get(`/tracking/${_bkId}`);
+  if (!res?.success) return;
+
+  const loc  = res.location;
+  const dest = res.destination;
+  const eta  = res.eta;
+
+  // Update badges
+  document.getElementById("badge-sim").style.display  = loc.simulated ? "block" : "none";
+  document.getElementById("badge-real").style.display = loc.simulated ? "none"  : "block";
+
+  // Move tractor marker smoothly
+  if (_equipMarker) {
+    animateMarker(_equipMarker, [loc.lat, loc.lng]);
+    _equipMarker.setRotationAngle?.(loc.heading || 0);
+  }
+
+  // Update destination marker
+  if (dest && _destMarker) {
+    _destLat = dest.lat; _destLng = dest.lng;
+    _destMarker.setLatLng([dest.lat, dest.lng]);
+  }
+
+  // Add to traveled path
+  if (!loc.simulated) {
+    const pts = _pathLayer.getLatLngs();
+    pts.push([loc.lat, loc.lng]);
+    _pathLayer.setLatLngs(pts);
+  }
+
+  // Draw road route
+  if (res.route && res.route.length > 1) {
+    drawRoute(res.route);
+    document.getElementById("badge-route").style.display = "block";
+  }
+
+  // Update info panel
+  document.getElementById("spd").textContent   = `${loc.speed_kmh || 0} km/h`;
+  document.getElementById("upd").textContent   = new Date(loc.timestamp).toLocaleTimeString("en-IN");
+  document.getElementById("accuracy-val").textContent =
+    loc.accuracy > 0 ? `±${Math.round(loc.accuracy)}m` : "—";
+
+  if (eta) {
+    const mins = eta.eta_minutes;
+    document.getElementById("eta-time").textContent =
+      mins < 1 ? "Arrived 🎉" : mins < 60 ? `${mins} min` : `${Math.floor(mins/60)}h ${mins%60}m`;
+    document.getElementById("road-dist").textContent = eta.road_distance || `${eta.distance_km} km`;
+  }
+
+  // Update directions
+  if (res.steps && res.steps.length) {
+    renderSteps(res.steps, loc.lat, loc.lng);
+  }
+
+  // Pan map to show both markers
+  if (!loc.simulated && _map) {
+    _lastLat = loc.lat; _lastLng = loc.lng;
+    if (_destLat) {
+      const bounds = L.latLngBounds(
+        [[loc.lat, loc.lng], [_destLat, _destLng]]
+      );
+      _map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16, animate: true });
+    } else {
+      _map.panTo([loc.lat, loc.lng], { animate: true });
+    }
+  }
+}
+
+function refreshNow() { poll(); }
+
+// ── Draw road route ───────────────────────────────────────────────────────────
+function drawRoute(latlngs) {
+  if (_routeLayer) { _map.removeLayer(_routeLayer); }
+  _routeLayer = L.polyline(latlngs, {
+    color: "#3b82f6",
+    weight: 6,
+    opacity: 0.75,
+    lineCap: "round",
+    lineJoin: "round"
+  }).addTo(_map);
+}
+
+// ── Smooth marker animation ───────────────────────────────────────────────────
+function animateMarker(marker, targetLatLng) {
+  const start = marker.getLatLng();
+  const frames = 20;
+  let frame = 0;
+  const dLat = (targetLatLng[0] - start.lat) / frames;
+  const dLng = (targetLatLng[1] - start.lng) / frames;
+  const anim = setInterval(() => {
+    frame++;
+    marker.setLatLng([start.lat + dLat * frame, start.lng + dLng * frame]);
+    if (frame >= frames) clearInterval(anim);
+  }, 50);
+}
+
+// ── Turn-by-turn steps ────────────────────────────────────────────────────────
+function renderSteps(steps, curLat, curLng) {
+  if (!steps.length) return;
+  const icons = {
+    "Turn left":    "↰", "Turn right":   "↱",
+    "Bear left":    "↖", "Bear right":   "↗",
+    "Sharp left":   "⬅", "Sharp right":  "➡",
+    "Continue":     "↑", "Head":         "↑",
+    "Merge":        "⤵", "Arrive":       "🏁",
+    "Enter roundabout": "🔄"
+  };
+  function getIcon(instr) {
+    for (const [k,v] of Object.entries(icons)) {
+      if (instr.startsWith(k)) return v;
+    }
+    return "•";
+  }
+  function fmtDist(m) {
+    return m >= 1000 ? `${(m/1000).toFixed(1)} km` : `${m} m`;
+  }
+
+  const html = steps.map((s, i) => `
+    <div class="step-row ${i === _currentStep ? "step-active" : ""}">
+      <div class="step-icon">${getIcon(s.instruction)}</div>
+      <div style="flex:1;">
+        <div style="font-weight:${i===_currentStep?"600":"400"};">${s.instruction}</div>
+        ${s.name ? `<div style="font-size:.78rem;color:var(--text-muted);">${s.name}</div>` : ""}
+      </div>
+      <div style="font-size:.78rem;color:var(--text-muted);white-space:nowrap;">${fmtDist(s.distance_m)}</div>
+    </div>`).join("");
+
+  document.getElementById("steps-container").innerHTML =
+    `<div class="steps-panel">${html}</div>`;
+}
+
+// ── Owner: Real GPS sharing ───────────────────────────────────────────────────
+function initButtons() {
+  const user     = Auth.getUser();
+  const startBtn = document.getElementById("gps-start");
+  const stopBtn  = document.getElementById("gps-stop");
+  const destBtn  = document.getElementById("set-dest-btn");
+
+  if (user?.role === "owner") {
+    startBtn.style.display = "inline-flex";
+
+    startBtn.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        Toast.warning("Geolocation not available on this device."); return;
+      }
+      sendGps();
+      _gpsInt = setInterval(sendGps, 5000);
+      startBtn.style.display   = "none";
+      stopBtn.style.display    = "inline-flex";
+      Toast.success("📡 Live GPS sharing started!");
+    });
+
+    stopBtn.addEventListener("click", () => {
+      if (_gpsInt) { clearInterval(_gpsInt); _gpsInt = null; }
+      startBtn.style.display = "inline-flex";
+      stopBtn.style.display  = "none";
+      Toast.warning("GPS sharing stopped.");
+    });
+  }
+
+  if (user?.role === "farmer") {
+    destBtn.style.display = "inline-flex";
+  }
+}
+
+function sendGps() {
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      const res = await Api.post("/tracking/update", {
+        booking_id: _bkId,
+        lat:        pos.coords.latitude,
+        lng:        pos.coords.longitude,
+        speed_kmh:  pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0,
+        heading:    pos.coords.heading || 0,
+        accuracy:   pos.coords.accuracy || 0
+      });
+      if (!res?.success) console.warn("GPS push failed:", res?.message);
+    },
+    err => { console.warn("GPS error:", err.message); },
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 2000 }
+  );
+}
+
+// ── Farmer: pin their field as destination ────────────────────────────────────
+function setMyFieldLocation() {
+  if (!navigator.geolocation) {
+    Toast.warning("Geolocation not available."); return;
+  }
+  const btn = document.getElementById("set-dest-btn");
+  btn.textContent = "📌 Locating…";
+  btn.disabled = true;
+
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      // Save to backend
+      const res = await Api.post(`/tracking/${_bkId}/destination`, { lat, lng });
+
+      // Update destination marker on map
+      if (_destMarker && _map) {
+        _destLat = lat; _destLng = lng;
+        _destMarker.setLatLng([lat, lng]);
+        _destMarker.openPopup();
+        _map.panTo([lat, lng]);
+      }
+
+      btn.textContent = "📌 Field Location Set ✓";
+      btn.disabled = false;
+      Toast.success("Your field location has been set as destination!");
+
+      // Refresh route
+      setTimeout(poll, 500);
+    },
+    err => {
+      btn.textContent = "📌 Set My Field as Destination";
+      btn.disabled = false;
+      Toast.error("Could not get location: " + err.message);
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+// ── Booking summary ───────────────────────────────────────────────────────────
+async function loadBookingSummary() {
+  const res = await Api.get(`/bookings/${_bkId}`);
+  const el  = document.getElementById("bk-sum");
+  if (!res?.success) {
+    el.innerHTML = `<p class="card-meta">Could not load booking details.</p>`;
+    return;
+  }
+  const b = res.booking;
+  el.innerHTML = `
+    <table style="width:100%;font-size:.88rem;">
+      <tr><td class="card-meta" style="padding:.3rem 0;width:100px;">Crop</td>
+          <td style="font-weight:600;text-transform:capitalize;">${b.crop_type}</td></tr>
+      <tr><td class="card-meta" style="padding:.3rem 0;">Date</td>
+          <td style="font-weight:600;">${formatDate(b.booking_date)}</td></tr>
+      <tr><td class="card-meta" style="padding:.3rem 0;">Hours</td>
+          <td style="font-weight:600;">${b.hours_required} hrs</td></tr>
+      <tr><td class="card-meta" style="padding:.3rem 0;">Amount</td>
+          <td style="font-weight:600;color:var(--primary);">${formatCurrency(b.total_price)}</td></tr>
+      <tr><td class="card-meta" style="padding:.3rem 0;">Status</td>
+          <td>${statusBadge(b.status)}</td></tr>
+    </table>`;
+}
+
+// ── Error display ─────────────────────────────────────────────────────────────
+function showErr(msg) {
+  const el = document.getElementById("trk-err");
+  if (el) { el.textContent = msg; el.style.display = "block"; }
+}
+
+// ── Cleanup ───────────────────────────────────────────────────────────────────
+window.addEventListener("beforeunload", () => {
+  if (_pollInt) clearInterval(_pollInt);
+  if (_gpsInt)  clearInterval(_gpsInt);
+});
+</script>
+{% endblock %}

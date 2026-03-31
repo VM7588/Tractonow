@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+
+<style>
+body {
+  background: url("{{ url_for('static', filename='images/fields.png') }}") no-repeat center center;
+  background-size: cover;
+  min-height: 100vh;
+}
+
+/* lighter overlay (important) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.25); /* reduced */
+  z-index: 0;
+}
+
+/* keep content above */
+.auth-wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+/* 🔥 make card slightly transparent so image is visible */
+.auth-card {
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(6px);
+}
+</style>
+<div class="auth-wrapper login-bg">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <h1>🚜 TractoNow</h1>
+      <p>Smart Agri Equipment Platform</p>
+    </div>
+    <h2 class="auth-title" data-i18n="login">Login</h2>
+
+    <div id="err" class="alert alert-error"   style="display:none;"></div>
+    <div id="suc" class="alert alert-success" style="display:none;"></div>
+
+    <!-- Login form -->
+    <div id="login-form">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="email" class="form-control"
+               placeholder="you@example.com" autocomplete="email"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label" style="display:flex;justify-content:space-between;">
+          <span>Password</span>
+          <a href="#" onclick="showForgot()" style="font-size:.82rem;color:var(--primary);">
+            Forgot password?
+          </a>
+        </label>
+        <div style="position:relative;">
+          <input type="password" id="pw" class="form-control"
+                 placeholder="••••••••" autocomplete="current-password"
+                 style="padding-right:2.8rem;"/>
+          <button type="button" onclick="togglePwVisible()"
+            style="position:absolute;right:.75rem;top:50%;transform:translateY(-50%);
+                   background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--text-muted);"
+            id="pw-eye">👁</button>
+        </div>
+      </div>
+      <button id="btn" class="btn btn-primary btn-full btn-lg" onclick="doLogin()">
+        Login
+      </button>
+      <div class="auth-switch" style="margin-top:1rem;">
+        Don't have an account? <a href="/register">Register here</a>
+      </div>
+      <div style="margin-top:1.25rem;padding:.85rem;background:#f0fdf4;
+                  border-radius:var(--radius);font-size:.82rem;color:var(--text-muted);">
+        <strong>Demo credentials:</strong><br>
+        Farmer → ramu@farm.com / ramu123<br>
+        Owner &nbsp;→ suresh@owner.com / suresh123
+      </div>
+    </div>
+
+    <!-- Forgot Password panel -->
+    <div id="forgot-form" style="display:none;">
+      <div style="text-align:center;margin-bottom:1.25rem;">
+        <div style="font-size:2.5rem;">🔑</div>
+        <h3 style="margin:.5rem 0 .25rem;">Forgot Password?</h3>
+        <p style="font-size:.88rem;color:var(--text-muted);">
+          Enter your registered phone number to reset your password.
+        </p>
+      </div>
+      <div id="fp-err" class="alert alert-error"   style="display:none;"></div>
+      <div id="fp-suc" class="alert alert-success" style="display:none;"></div>
+
+      <!-- Step 1: Enter phone -->
+      <div id="fp-step1">
+        <div class="form-group">
+          <label class="form-label">Registered Phone Number</label>
+          <input type="tel" id="fp-phone" class="form-control"
+                 placeholder="9XXXXXXXXX" maxlength="10"/>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="fpVerifyPhone()">
+          Verify Phone
+        </button>
+      </div>
+
+      <!-- Step 2: New password -->
+      <div id="fp-step2" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">New Password</label>
+          <input type="password" id="fp-newpw" class="form-control"
+                 placeholder="Min 6 characters"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm New Password</label>
+          <input type="password" id="fp-confirmpw" class="form-control"
+                 placeholder="Repeat password"/>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="fpResetPassword()">
+          Reset Password
+        </button>
+      </div>
+
+      <div style="text-align:center;margin-top:1rem;">
+        <a href="#" onclick="showLogin()" style="font-size:.88rem;">← Back to Login</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  redirectIfLoggedIn();
+
+  // ── Toggle password visibility ──────────────────────────────────────
+  function togglePwVisible() {
+    const inp = document.getElementById("pw");
+    const eye = document.getElementById("pw-eye");
+    if (inp.type === "password") { inp.type = "text";     eye.textContent = "🙈"; }
+    else                         { inp.type = "password"; eye.textContent = "👁";  }
+  }
+
+  // ── Show / hide panels ──────────────────────────────────────────────
+  function showForgot() {
+    document.getElementById("login-form").style.display  = "none";
+    document.getElementById("forgot-form").style.display = "block";
+    document.getElementById("err").style.display = "none";
+  }
+  function showLogin() {
+    document.getElementById("forgot-form").style.display = "none";
+    document.getElementById("login-form").style.display  = "block";
+    document.getElementById("fp-err").style.display = "none";
+    document.getElementById("fp-suc").style.display = "none";
+    document.getElementById("fp-step1").style.display = "block";
+    document.getElementById("fp-step2").style.display = "none";
+  }
+
+  // ── Login ────────────────────────────────────────────────────────────
+  async function doLogin() {
+    const errDiv = document.getElementById("err");
+    const btn    = document.getElementById("btn");
+    const email  = document.getElementById("email").value.trim();
+    const pw     = document.getElementById("pw").value;
+    errDiv.style.display = "none";
+    if (!email || !pw) {
+      errDiv.textContent = "Email and password required.";
+      errDiv.style.display = "block"; return;
+    }
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span> Logging in…`;
+    const res = await Api.post("/auth/login", { email, password: pw });
+    btn.disabled = false; btn.innerHTML = "Login";
+    if (res?.success) {
+      Auth.setSession(res.token, res.user);
+      Toast.success(`Welcome back, ${res.user.name}! 👋`);
+      setTimeout(() => {
+        window.location.href =
+          res.user.role === "owner" ? "/dashboard/owner" : "/dashboard/farmer";
+      }, 700);
+    } else {
+      errDiv.textContent  = res?.message || "Login failed. Check credentials.";
+      errDiv.style.display = "block";
+    }
+  }
+  document.addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+
+  // ── Forgot password — Step 1: verify phone ───────────────────────────
+  let _fpPhone = "";
+  async function fpVerifyPhone() {
+    const phone  = document.getElementById("fp-phone").value.trim();
+    const errDiv = document.getElementById("fp-err");
+    const sucDiv = document.getElementById("fp-suc");
+    errDiv.style.display = "none"; sucDiv.style.display = "none";
+    if (!/^\d{10}$/.test(phone)) {
+      errDiv.textContent = "Enter a valid 10-digit phone number.";
+      errDiv.style.display = "block"; return;
+    }
+    const res = await Api.post("/auth/check-phone", { phone });
+    if (res?.success) {
+      _fpPhone = phone;
+      sucDiv.textContent = `✅ Phone verified! Set your new password.`;
+      sucDiv.style.display = "block";
+      document.getElementById("fp-step1").style.display = "none";
+      document.getElementById("fp-step2").style.display = "block";
+    } else {
+      errDiv.textContent  = res?.message || "Phone number not found.";
+      errDiv.style.display = "block";
+    }
+  }
+
+  // ── Forgot password — Step 2: reset ─────────────────────────────────
+  async function fpResetPassword() {
+    const newpw  = document.getElementById("fp-newpw").value;
+    const conf   = document.getElementById("fp-confirmpw").value;
+    const errDiv = document.getElementById("fp-err");
+    const sucDiv = document.getElementById("fp-suc");
+    errDiv.style.display = "none"; sucDiv.style.display = "none";
+    if (newpw.length < 6) {
+      errDiv.textContent = "Password must be at least 6 characters.";
+      errDiv.style.display = "block"; return;
+    }
+    if (newpw !== conf) {
+      errDiv.textContent = "Passwords do not match.";
+      errDiv.style.display = "block"; return;
+    }
+    const res = await Api.post("/auth/reset-password",
+      { phone: _fpPhone, new_password: newpw });
+    if (res?.success) {
+      sucDiv.textContent = "✅ Password reset! You can now login.";
+      sucDiv.style.display = "block";
+      setTimeout(showLogin, 2000);
+    } else {
+      errDiv.textContent  = res?.message || "Reset failed.";
+      errDiv.style.display = "block";
+    }
+  }
+</script>
+{% endblock %}

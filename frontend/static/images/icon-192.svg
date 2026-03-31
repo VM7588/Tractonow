@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- Background -->
+  <rect width="192" height="192" rx="36" fill="#16a34a"/>
+
+  <!-- Tractor body -->
+  <rect x="38" y="72" width="72" height="46" rx="10" fill="#ffffff"/>
+
+  <!-- Cabin -->
+  <rect x="58" y="44" width="46" height="36" rx="8" fill="#bbf7d0"/>
+  <!-- Cabin window -->
+  <rect x="65" y="51" width="32" height="22" rx="4" fill="#16a34a" opacity="0.35"/>
+
+  <!-- Exhaust pipe -->
+  <rect x="90" y="30" width="10" height="18" rx="4" fill="#ffffff"/>
+  <!-- Smoke puff -->
+  <circle cx="95" cy="26" r="5" fill="#d1fae5" opacity="0.7"/>
+  <circle cx="100" cy="20" r="3.5" fill="#d1fae5" opacity="0.5"/>
+
+  <!-- Rear big wheel -->
+  <circle cx="68" cy="124" r="30" fill="#ffffff" stroke="#bbf7d0" stroke-width="4"/>
+  <circle cx="68" cy="124" r="18" fill="#e5e7eb" stroke="#d1d5db" stroke-width="2"/>
+  <circle cx="68" cy="124" r="7"  fill="#16a34a"/>
+  <!-- Wheel spokes -->
+  <line x1="68" y1="94"  x2="68" y2="107" stroke="#9ca3af" stroke-width="3" stroke-linecap="round"/>
+  <line x1="68" y1="141" x2="68" y2="154" stroke="#9ca3af" stroke-width="3" stroke-linecap="round"/>
+  <line x1="38" y1="124" x2="51" y2="124" stroke="#9ca3af" stroke-width="3" stroke-linecap="round"/>
+  <line x1="85" y1="124" x2="98" y2="124" stroke="#9ca3af" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Small front wheel -->
+  <circle cx="128" cy="128" r="18" fill="#ffffff" stroke="#bbf7d0" stroke-width="3"/>
+  <circle cx="128" cy="128" r="7"  fill="#16a34a"/>
+
+  <!-- Hitch bar -->
+  <rect x="28" y="108" width="16" height="8" rx="3" fill="#d1fae5"/>
+
+  <!-- Ground shadow -->
+  <ellipse cx="96" cy="158" rx="68" ry="8" fill="#000000" opacity="0.12"/>
+</svg>

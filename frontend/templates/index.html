@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<script>
+  (function(){
+    const u=JSON.parse(localStorage.getItem("tractonow_user")||"null");
+    const t=localStorage.getItem("tractonow_token");
+    if(t&&u) window.location.href=u.role==="owner"?"/dashboard/owner":"/dashboard/farmer";
+  })();
+</script>
+<section class="hero">
+  <div class="container">
+    <h1>Smart Farm Equipment,<br>Booked in Minutes 🌾</h1>
+    <p>Book tractors, harvesters & more. Group booking, live GPS tracking, AI demand prediction — in Telugu, Hindi or English.</p>
+    <div class="hero-btns">
+      <a href="/register" class="btn btn-primary btn-lg">👨‍🌾 Get Started Free</a>
+      <a href="/login"    class="btn btn-outline btn-lg">🔑 Login</a>
+    </div>
+  </div>
+</section>
+<section class="container page-wrap">
+  <h2 style="text-align:center;margin-bottom:2rem;">Why TractoNow?</h2>
+  <div class="grid-3">
+    <div class="card" style="text-align:center;"><div style="font-size:2.5rem;margin-bottom:.75rem;">🤖</div><h3 class="card-title">AI Crop Demand</h3><p class="card-meta">Know which crop needs equipment most this season.</p></div>
+    <div class="card" style="text-align:center;"><div style="font-size:2.5rem;margin-bottom:.75rem;">👥</div><h3 class="card-title">Group Booking</h3><p class="card-meta">Share one tractor with neighbours. Cost splits automatically.</p></div>
+    <div class="card" style="text-align:center;"><div style="font-size:2.5rem;margin-bottom:.75rem;">📍</div><h3 class="card-title">Live GPS Tracking</h3><p class="card-meta">Real-time location of booked equipment with ETA.</p></div>
+    <div class="card" style="text-align:center;"><div style="font-size:2.5rem;margin-bottom:.75rem;">🌦️</div><h3 class="card-title">5-Day Weather</h3><p class="card-meta">Forecast for your village with farming advice.</p></div>
+    <div class="card" style="text-align:center;"><div style="font-size:2.5rem;margin-bottom:.75rem;">🗣️</div><h3 class="card-title">Voice in Your Language</h3><p class="card-meta">Telugu, Hindi, English voice input — for every farmer.</p></div>
+    <div class="card" style="text-align:center;"><div style="font-size:2.5rem;margin-bottom:.75rem;">💳</div><h3 class="card-title">Easy Payments</h3><p class="card-meta">Pay via UPI, Card or Net Banking instantly.</p></div>
+  </div>
+</section>
+<section style="background:#f0fdf4;padding:3rem 1rem;text-align:center;">
+  <div class="container">
+    <h2 style="margin-bottom:1rem;">Ready to get started?</h2>
+    <p style="color:var(--text-muted);margin-bottom:2rem;">Join thousands of farmers already using TractoNow.</p>
+    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+      <a href="/register?role=farmer" class="btn btn-primary btn-lg">👨‍🌾 I'm a Farmer</a>
+      <a href="/register?role=owner"  class="btn btn-accent  btn-lg">🚜 I Own Equipment</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

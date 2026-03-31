@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Book Equipment{% endblock %}
+{% block content %}
+<div class="container page-wrap">
+  <h2 style="margin-bottom:1.25rem;">🚜 Book Equipment</h2>
+
+  <!-- Filters -->
+  <div class="card" style="margin-bottom:1.75rem;">
+    <h4 style="margin-bottom:.85rem;">🔍 Find Equipment by Location</h4>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.85rem;align-items:end;">
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Type</label>
+        <select id="ft" class="form-control" onchange="loadEq()">
+          <option value="">All Types</option>
+          <option value="tractor">🚜 Tractor</option><option value="harvester">🌾 Harvester</option>
+          <option value="rotavator">⚙️ Rotavator</option><option value="seed_drill">🌱 Seed Drill</option>
+          <option value="sprayer">💧 Sprayer</option><option value="cultivator">🔧 Cultivator</option>
+          <option value="plough">🪵 Plough</option><option value="thresher">🌀 Thresher</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Village</label>
+        <input type="text" id="fv" class="form-control" placeholder="Village" oninput="dLoad()"/>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Mandal</label>
+        <input type="text" id="fm" class="form-control" placeholder="Mandal" oninput="dLoad()"/>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">District</label>
+        <input type="text" id="fd" class="form-control" placeholder="District" oninput="dLoad()"/>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">State</label>
+        <input type="text" id="fs" class="form-control" placeholder="State" oninput="dLoad()"/>
+      </div>
+      <div class="form-group" style="margin:0;display:flex;align-items:flex-end;padding-bottom:.1rem;">
+        <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.9rem;">
+          <input type="checkbox" id="fa" onchange="loadEq()"> Available only
+        </label>
+      </div>
+    </div>
+    <div id="result-count" style="margin-top:.6rem;font-size:.82rem;color:var(--text-muted);"></div>
+  </div>
+
+  <div id="eq-grid" class="grid-3"><div class="spinner" style="margin:2rem auto;display:block;"></div></div>
+</div>
+
+<!-- Booking Modal -->
+<div id="bk-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+  <div class="card" style="max-width:530px;width:100%;max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+      <div>
+        <h3 id="m-name">Name</h3>
+        <div id="m-loc" style="font-size:.8rem;color:var(--text-muted);"></div>
+        <span id="m-price" style="color:var(--primary);font-weight:700;"></span>
+      </div>
+      <button onclick="closeBk()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;line-height:1;">✕</button>
+    </div>
+    <div id="m-img" style="display:none;margin-bottom:.85rem;">
+      <img id="m-img-el" src="" alt="" style="width:100%;height:170px;object-fit:cover;border-radius:var(--radius);"/>
+    </div>
+    <form id="bk-form">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;">
+        <div class="form-group">
+          <label class="form-label">Crop Type *</label>
+          <select id="crop" name="crop_type" class="form-control" onchange="updatePrice()">
+            <option value="">Select crop</option>
+            <option value="rice">🌾 Rice</option><option value="wheat">🌿 Wheat</option>
+            <option value="cotton">🌸 Cotton</option><option value="sugarcane">🎋 Sugarcane</option>
+            <option value="maize">🌽 Maize</option><option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hours Required *</label>
+          <input type="number" id="hrs" name="hours_required" class="form-control" min="1" max="12" placeholder="4" onchange="updatePrice()"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Booking Date *</label>
+        <input type="date" id="bdate" name="booking_date" class="form-control" onchange="updatePrice()"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>Notes (optional)</span>
+          <button type="button" id="voice-btn" class="voice-btn">🎤 Voice</button>
+        </label>
+        <textarea id="notes" name="notes" class="form-control" rows="2" placeholder="Special instructions..."></textarea>
+      </div>
+      <div id="price-box" style="margin-bottom:1rem;"><p style="color:var(--text-muted);font-size:.88rem;">Select crop, date & hours to see pricing.</p></div>
+      <div id="bk-err" class="alert alert-error" style="display:none;"></div>
+      <button type="submit" class="btn btn-primary btn-full btn-lg btn-submit">📅 Confirm Booking</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/booking.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded",()=>{
+  redirectIfNotLoggedIn();
+  const u=Auth.getUser();
+  if(u?.district) document.getElementById("fd").value=u.district;
+  if(u?.mandal)   document.getElementById("fm").value=u.mandal;
+  loadEq();
+  Voice.init("voice-btn","notes");
+  const tmr=new Date();tmr.setDate(tmr.getDate()+1);
+  document.getElementById("bdate").min=tmr.toISOString().split("T")[0];
+  document.getElementById("bk-form").addEventListener("submit",submitBooking);
+  document.addEventListener("click",e=>{if(e.target.id==="bk-modal")closeBk();});
+});
+let _dt=null;
+function dLoad(){clearTimeout(_dt);_dt=setTimeout(loadEq,380);}
+</script>
+{% endblock %}

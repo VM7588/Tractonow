@@ -1,0 +1,33 @@
+{
+  "name": "TractoNow – Smart Agri Equipment",
+  "short_name": "TractoNow",
+  "description": "Book tractors and farm equipment instantly. Group booking, ML demand prediction, real-time tracking.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#16a34a",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/static/images/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "/static/images/favicon.svg",  "sizes": "32x32",   "type": "image/svg+xml" }
+  ],
+  "categories": ["productivity", "agriculture", "utilities"],
+  "lang": "en",
+  "dir": "ltr",
+  "shortcuts": [
+    {
+      "name": "Book Equipment",
+      "short_name": "Book",
+      "description": "Search and book farm equipment",
+      "url": "/booking",
+      "icons": [{ "src": "/static/images/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Group Booking",
+      "short_name": "Group",
+      "description": "Join or create a group booking",
+      "url": "/group-booking",
+      "icons": [{ "src": "/static/images/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

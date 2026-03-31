@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Register{% endblock %}
+{% block content %}
+<div class="auth-wrapper register-bg">
+  <div class="auth-card" style="max-width:520px;">
+    <div class="auth-logo"><h1>🚜 TractoNow</h1><p>Create your free account</p></div>
+    <div id="err" class="alert alert-error"   style="display:none;"></div>
+    <div id="suc" class="alert alert-success" style="display:none;"></div>
+
+    <!-- Role -->
+    <div class="form-group">
+      <label class="form-label">I am a…</label>
+      <div style="display:flex;gap:.75rem;">
+        <label style="flex:1;cursor:pointer;">
+          <input type="radio" name="role" value="farmer" id="r-farmer" checked style="display:none;">
+          <div id="c-farmer" style="border:2px solid var(--primary);background:#f0fdf4;border-radius:var(--radius);padding:.85rem;text-align:center;">
+            <div style="font-size:1.8rem;">👨‍🌾</div><div style="font-weight:600;margin-top:.25rem;">Farmer</div>
+            <div style="font-size:.78rem;color:var(--text-muted);">Book equipment</div>
+          </div>
+        </label>
+        <label style="flex:1;cursor:pointer;">
+          <input type="radio" name="role" value="owner" id="r-owner" style="display:none;">
+          <div id="c-owner" style="border:2px solid var(--border);border-radius:var(--radius);padding:.85rem;text-align:center;">
+            <div style="font-size:1.8rem;">🚜</div><div style="font-weight:600;margin-top:.25rem;">Owner</div>
+            <div style="font-size:.78rem;color:var(--text-muted);">List & earn</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Name, email, phone -->
+    <div class="form-group">
+      <label class="form-label">Full Name *</label>
+      <input type="text" id="name" class="form-control" placeholder="Your full name"/>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+      <div class="form-group"><label class="form-label">Email *</label><input type="email" id="email" class="form-control" placeholder="you@example.com"/></div>
+      <div class="form-group"><label class="form-label">Phone *</label><input type="tel" id="phone" class="form-control" placeholder="9XXXXXXXXX" maxlength="10"/></div>
+    </div>
+
+    <!-- Farmer Location -->
+    <div id="farmer-loc">
+      <p style="font-size:.84rem;font-weight:600;color:var(--primary);margin-bottom:.5rem;">📍 Farmer Location</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+        <div class="form-group"><label class="form-label">Village</label><input type="text" id="f-village" class="form-control" placeholder="Your village"/></div>
+        <div class="form-group"><label class="form-label">Mandal</label><input type="text" id="f-mandal" class="form-control" placeholder="Your mandal"/></div>
+        <div class="form-group"><label class="form-label">District</label><input type="text" id="f-district" class="form-control" placeholder="Your district"/></div>
+        <div class="form-group"><label class="form-label">State</label><input type="text" id="f-state" class="form-control" value="Telangana"/></div>
+      </div>
+    </div>
+
+    <!-- Owner Location -->
+    <div id="owner-loc" style="display:none;">
+      <p style="font-size:.84rem;font-weight:600;color:var(--primary);margin-bottom:.5rem;">📍 Owner Base Location</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+        <div class="form-group"><label class="form-label">Village</label><input type="text" id="o-village" class="form-control" placeholder="Your village"/></div>
+        <div class="form-group"><label class="form-label">Mandal</label><input type="text" id="o-mandal" class="form-control" placeholder="Your mandal"/></div>
+        <div class="form-group"><label class="form-label">District</label><input type="text" id="o-district" class="form-control" placeholder="Your district"/></div>
+        <div class="form-group"><label class="form-label">State</label><input type="text" id="o-state" class="form-control" value="Telangana"/></div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Preferred Language</label>
+      <select id="lang" class="form-control">
+        <option value="en">English</option>
+        <option value="te">తెలుగు (Telugu)</option>
+        <option value="hi">हिंदी (Hindi)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password * (min 6)</label>
+      <input type="password" id="pw" class="form-control" placeholder="••••••••"/>
+    </div>
+    <button id="btn" class="btn btn-primary btn-full btn-lg" onclick="doRegister()">Create Account</button>
+    <div class="auth-switch" style="margin-top:.75rem;">Already have an account? <a href="/login">Login</a></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  redirectIfLoggedIn();
+  const urlRole=new URLSearchParams(window.location.search).get("role");
+  if(urlRole==="owner"){document.getElementById("r-owner").checked=true;toggleRole("owner");}
+
+  document.querySelectorAll("input[name='role']").forEach(r=>r.addEventListener("change",()=>toggleRole(r.value)));
+
+  function toggleRole(role){
+    const iF=role==="farmer";
+    document.getElementById("c-farmer").style.borderColor=iF?"var(--primary)":"var(--border)";
+    document.getElementById("c-farmer").style.background =iF?"#f0fdf4":"#fff";
+    document.getElementById("c-owner").style.borderColor =!iF?"var(--primary)":"var(--border)";
+    document.getElementById("c-owner").style.background  =!iF?"#f0fdf4":"#fff";
+    document.getElementById("farmer-loc").style.display  =iF?"block":"none";
+    document.getElementById("owner-loc").style.display   =!iF?"block":"none";
+  }
+
+  async function doRegister(){
+    const errDiv=document.getElementById("err");const sucDiv=document.getElementById("suc");
+    const btn=document.getElementById("btn");
+    errDiv.style.display="none";sucDiv.style.display="none";
+    const role=document.querySelector("input[name='role']:checked").value;
+    const iF=role==="farmer";
+    const name=document.getElementById("name").value.trim();
+    const email=document.getElementById("email").value.trim();
+    const phone=document.getElementById("phone").value.trim();
+    const pw=document.getElementById("pw").value;
+    if(!name||!email||!phone||!pw){errDiv.textContent="Fill all required fields.";errDiv.style.display="block";return;}
+    if(pw.length<6){errDiv.textContent="Password min 6 chars.";errDiv.style.display="block";return;}
+    if(!/^\d{10}$/.test(phone)){errDiv.textContent="Enter valid 10-digit phone.";errDiv.style.display="block";return;}
+    const p=iF?["f-village","f-mandal","f-district","f-state"]:["o-village","o-mandal","o-district","o-state"];
+    const [vil,man,dis,sta]=p.map(id=>document.getElementById(id).value.trim());
+    btn.disabled=true;btn.innerHTML=`<span class="spinner"></span> Creating...`;
+    const res=await Api.post("/auth/register",{name,email,phone,password:pw,role,
+      language:document.getElementById("lang").value,
+      village:vil,mandal:man,district:dis,state:sta||"Telangana"});
+    btn.disabled=false;btn.innerHTML="Create Account";
+    if(res?.success){
+      Auth.setSession(res.token,res.user);
+      sucDiv.textContent="Account created! Redirecting...";sucDiv.style.display="block";
+      setTimeout(()=>window.location.href=role==="owner"?"/dashboard/owner":"/dashboard/farmer",900);
+    }else{errDiv.textContent=res?.message||"Registration failed.";errDiv.style.display="block";}
+  }
+</script>
+{% endblock %}

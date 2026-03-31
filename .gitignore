@@ -1,0 +1,85 @@
+# ═══════════════════════════════════════════════════
+#  TractoNow — .gitignore
+# ═══════════════════════════════════════════════════
+
+# ── Python ─────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.pyc
+*.pyd
+
+# ── Virtual environments ────────────────────────────
+venv/
+env/
+.venv/
+.env.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ── Environment secrets — NEVER commit .env ────────
+backend/.env
+.env
+.env.*
+!.env.example
+
+# ── ML model files (regenerate with train_model.py) ─
+backend/models/*.pkl
+backend/models/*.joblib
+*.pkl
+*.joblib
+
+# ── Uploaded equipment images ───────────────────────
+frontend/static/images/equipment/
+!frontend/static/images/equipment/.gitkeep
+
+# ── Background media (too large for git) ───────────
+frontend/static/videos/farming.mp4
+frontend/static/videos/farming.webm
+frontend/static/images/fields.jpg
+frontend/static/images/fields.jpeg
+frontend/static/images/machines.jpg
+frontend/static/images/machines.jpeg
+frontend/static/images/farming-poster.jpg
+
+# ── IDE and editor ──────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Testing and coverage ────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ── Logs ────────────────────────────────────────────
+*.log
+logs/
+pip-log.txt
+
+# ── OS files ────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ── Deployment ──────────────────────────────────────
+*.pid
+gunicorn.pid
+.vercel/
+.netlify/

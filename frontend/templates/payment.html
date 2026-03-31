@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}Payment{% endblock %}
+{% block content %}
+<div class="container page-wrap">
+  <div class="dashboard-header"><h2>💳 Payment</h2><p>Secure demo payment — no real money charged.</p></div>
+  <div class="grid-2" style="gap:1.5rem;">
+    <!-- Booking summary -->
+    <div>
+      <div class="card" style="margin-bottom:1.25rem;">
+        <h4 class="card-title" style="margin-bottom:.85rem;">📋 Booking Summary</h4>
+        <div id="bk-summary"><div class="spinner" style="margin:1rem auto;display:block;"></div></div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+          <h4 class="card-title">💳 Saved Methods</h4>
+          <button class="btn btn-sm btn-outline" onclick="showAddMethod()">+ Add</button>
+        </div>
+        <div id="saved-methods"><p style="color:var(--text-muted);font-size:.88rem;">No saved methods yet.</p></div>
+      </div>
+    </div>
+    <!-- Pay form -->
+    <div class="card">
+      <h4 class="card-title" style="margin-bottom:1rem;">🔒 Pay Now (Demo)</h4>
+      <div style="display:flex;gap:.5rem;margin-bottom:1.1rem;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" id="t-upi" onclick="setTab('upi')">📱 UPI</button>
+        <button class="btn btn-secondary btn-sm" id="t-card" onclick="setTab('card')">💳 Card</button>
+        <button class="btn btn-secondary btn-sm" id="t-nb" onclick="setTab('nb')">🏦 Net Banking</button>
+      </div>
+      <!-- UPI -->
+      <div id="s-upi">
+        <div class="form-group"><label class="form-label">UPI ID</label><input type="text" id="upi-id" class="form-control" placeholder="yourname@paytm"/></div>
+        <button class="btn btn-primary btn-full" onclick="payNow('upi')">💸 Pay via UPI</button>
+      </div>
+      <!-- Card -->
+      <div id="s-card" style="display:none;">
+        <div class="form-group"><label class="form-label">Card Number</label><input type="text" id="card-num" class="form-control" placeholder="1234 5678 9012 3456" maxlength="19" oninput="fmtCard(this)"/></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;">
+          <div class="form-group"><label class="form-label">Expiry</label><input type="text" id="card-exp" class="form-control" placeholder="MM/YY" maxlength="5"/></div>
+          <div class="form-group"><label class="form-label">CVV</label><input type="text" id="card-cvv" class="form-control" placeholder="123" maxlength="3"/></div>
+        </div>
+        <div class="form-group"><label class="form-label">Card Holder Name</label><input type="text" id="card-name" class="form-control" placeholder="Your Name"/></div>
+        <button class="btn btn-primary btn-full" onclick="payNow('card')">💳 Pay via Card</button>
+      </div>
+      <!-- Net Banking -->
+      <div id="s-nb" style="display:none;">
+        <div class="form-group"><label class="form-label">Select Bank</label>
+          <select id="nb-bank" class="form-control">
+            <option value="">Choose bank</option>
+            <option>State Bank of India</option><option>HDFC Bank</option>
+            <option>ICICI Bank</option><option>Axis Bank</option>
+            <option>Andhra Bank</option><option>Canara Bank</option>
+            <option>Bank of Baroda</option><option>Punjab National Bank</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="payNow('netbanking')">🏦 Pay via Net Banking</button>
+      </div>
+
+      <div id="pay-result" style="display:none;margin-top:1rem;"></div>
+    </div>
+  </div>
+
+  <!-- Add Method Modal -->
+  <div id="add-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+    <div class="card" style="max-width:420px;width:100%;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <h4>Add Payment Method</h4>
+        <button onclick="document.getElementById('add-modal').style.display='none'" style="background:none;border:none;font-size:1.4rem;cursor:pointer;">✕</button>
+      </div>
+      <div class="form-group"><label class="form-label">Type</label>
+        <select id="new-type" class="form-control" onchange="toggleNewType()">
+          <option value="upi">UPI</option><option value="card">Card</option><option value="netbanking">Net Banking</option>
+        </select>
+      </div>
+      <div id="new-upi"><div class="form-group"><label class="form-label">UPI ID</label><input type="text" id="new-upi-id" class="form-control" placeholder="name@upi"/></div></div>
+      <div id="new-card" style="display:none;">
+        <div class="form-group"><label class="form-label">Card Number</label><input type="text" id="new-card-num" class="form-control" placeholder="1234..." maxlength="19" oninput="fmtCard(this)"/></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+          <div class="form-group"><label class="form-label">Expiry</label><input type="text" id="new-exp" class="form-control" placeholder="MM/YY"/></div>
+          <div class="form-group"><label class="form-label">Name</label><input type="text" id="new-cname" class="form-control" placeholder="Your name"/></div>
+        </div>
+      </div>
+      <div id="new-nb" style="display:none;"><div class="form-group"><label class="form-label">Bank</label><input type="text" id="new-bank" class="form-control" placeholder="Bank name"/></div></div>
+      <button class="btn btn-primary btn-full" onclick="saveMethod()">Save Method</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let _bkId=new URLSearchParams(window.location.search).get("booking_id")||"";
+let _amount=0;
+
+document.addEventListener("DOMContentLoaded",async()=>{
+  redirectIfNotLoggedIn();
+  loadMethods();
+  if(_bkId){
+    const res=await Api.get(`/bookings/${_bkId}`);
+    const el=document.getElementById("bk-summary");
+    if(res?.success){
+      const b=res.booking;_amount=b.total_price;
+      el.innerHTML=`
+        <table style="width:100%;font-size:.9rem;">
+          <tr><td class="card-meta" style="padding:.3rem 0;">Crop</td><td style="font-weight:600;text-transform:capitalize;">${b.crop_type}</td></tr>
+          <tr><td class="card-meta" style="padding:.3rem 0;">Date</td><td style="font-weight:600;">${formatDate(b.booking_date)}</td></tr>
+          <tr><td class="card-meta" style="padding:.3rem 0;">Hours</td><td style="font-weight:600;">${b.hours_required} hrs</td></tr>
+          <tr><td class="card-meta" style="padding:.3rem 0;">Amount</td><td style="font-weight:700;color:var(--primary);font-size:1.1rem;">${formatCurrency(b.total_price)}</td></tr>
+          <tr><td class="card-meta" style="padding:.3rem 0;">Payment</td><td>${b.payment_status==="paid"?`<span class="card-badge badge-green">✅ Already Paid (${b.payment_txn_id})</span>`:statusBadge("pending")}</td></tr>
+        </table>`;
+      if(b.payment_status==="paid"){
+        document.querySelectorAll(".btn-primary").forEach(b=>b.disabled=true);
+        const pr=document.getElementById("pay-result");
+        pr.innerHTML=`<div class="alert alert-success">✅ Already paid. TXN: ${b.payment_txn_id}</div>`;
+        pr.style.display="block";
+      }
+    } else el.innerHTML=`<p class="card-meta">Could not load booking.</p>`;
+  }
+});
+
+function setTab(t){
+  ["upi","card","nb"].forEach(id=>{
+    document.getElementById("s-"+id).style.display=id===t?"block":"none";
+    document.getElementById("t-"+id).className=id===t?"btn btn-primary btn-sm":"btn btn-secondary btn-sm";
+  });
+}
+
+function fmtCard(el){
+  el.value=el.value.replace(/\D/g,"").replace(/(.{4})/g,"$1 ").trim().slice(0,19);
+}
+
+async function payNow(method){
+  if(!_bkId){Toast.error("No booking selected.");return;}
+  let methodId="direct_"+method;
+  let valid=true;
+  if(method==="upi"&&!document.getElementById("upi-id").value.includes("@")){Toast.error("Enter valid UPI ID.");return;}
+  if(method==="card"&&document.getElementById("card-num").value.replace(/\s/g,"").length<12){Toast.error("Enter valid card number.");return;}
+  if(method==="netbanking"&&!document.getElementById("nb-bank").value){Toast.error("Select a bank.");return;}
+
+  const res=await Api.post("/payment/pay",{booking_id:_bkId,method_id:methodId});
+  const pr=document.getElementById("pay-result");
+  if(res?.success){
+    pr.innerHTML=`<div class="alert alert-success">✅ Payment successful!<br><strong>TXN ID:</strong> ${res.txn_id}<br><strong>Amount:</strong> ${formatCurrency(res.amount)}</div>`;
+    pr.style.display="block";
+    document.querySelectorAll(".btn-primary").forEach(b=>{if(!b.id.startsWith("t-"))b.disabled=true;});
+    Toast.success("Payment done! 🎉");
+  } else {pr.innerHTML=`<div class="alert alert-error">${res?.message||"Payment failed."}</div>`;pr.style.display="block";}
+}
+
+async function loadMethods(){
+  const res=await Api.get("/payment/methods");
+  const el=document.getElementById("saved-methods");
+  if(!res?.success||!res.methods.length){el.innerHTML=`<p style="color:var(--text-muted);font-size:.88rem;">No saved methods yet.</p>`;return;}
+  el.innerHTML=res.methods.map(m=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:.88rem;">${m.type==="upi"?"📱":m.type==="card"?"💳":"🏦"} ${m.display}</span>
+      <button class="btn btn-sm btn-danger" onclick="removeMethod('${m.id}')">✕</button>
+    </div>`).join("");
+}
+
+async function removeMethod(id){
+  const res=await Api.delete(`/payment/methods/${id}`);
+  if(res?.success){Toast.success("Removed.");loadMethods();}
+}
+
+function showAddMethod(){document.getElementById("add-modal").style.display="flex";}
+function toggleNewType(){
+  const t=document.getElementById("new-type").value;
+  document.getElementById("new-upi").style.display =t==="upi"?"block":"none";
+  document.getElementById("new-card").style.display=t==="card"?"block":"none";
+  document.getElementById("new-nb").style.display  =t==="netbanking"?"block":"none";
+}
+
+async function saveMethod(){
+  const type=document.getElementById("new-type").value;
+  let payload={type};
+  if(type==="upi")        payload.upi_id     =document.getElementById("new-upi-id").value;
+  if(type==="card")       { payload.card_number=document.getElementById("new-card-num").value;
+                            payload.card_name  =document.getElementById("new-cname").value;
+                            payload.expiry     =document.getElementById("new-exp").value; }
+  if(type==="netbanking") payload.bank        =document.getElementById("new-bank").value;
+  const res=await Api.post("/payment/methods",payload);
+  if(res?.success){Toast.success("Method saved!");document.getElementById("add-modal").style.display="none";loadMethods();}
+  else Toast.error(res?.message||"Failed.");
+}
+</script>
+{% endblock %}

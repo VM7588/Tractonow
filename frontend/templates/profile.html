@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}My Profile{% endblock %}
+{% block content %}
+<div class="container page-wrap">
+  <div class="dashboard-header">
+    <h2>👤 My Profile</h2>
+    <p>View and update your account details.</p>
+  </div>
+  <div class="card" style="max-width:520px;">
+    <div id="profile-view"></div>
+    <hr style="margin:1rem 0;border-color:var(--border);">
+    <h4 style="margin-bottom:.85rem;">Edit Profile</h4>
+    <div class="form-group"><label class="form-label">Name</label><input type="text" id="p-name" class="form-control"/></div>
+    <div class="form-group"><label class="form-label">Language</label>
+      <select id="p-lang" class="form-control">
+        <option value="en">English</option><option value="te">తెలుగు</option><option value="hi">हिंदी</option>
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;">
+      <div class="form-group"><label class="form-label">Village</label><input type="text" id="p-village" class="form-control"/></div>
+      <div class="form-group"><label class="form-label">Mandal</label><input type="text" id="p-mandal" class="form-control"/></div>
+      <div class="form-group"><label class="form-label">District</label><input type="text" id="p-district" class="form-control"/></div>
+      <div class="form-group"><label class="form-label">State</label><input type="text" id="p-state" class="form-control"/></div>
+    </div>
+    <div id="p-msg" class="alert" style="display:none;"></div>
+    <div style="display:flex;gap:.75rem;margin-top:.5rem;">
+      <button class="btn btn-primary" onclick="saveProfile()">💾 Save Changes</button>
+      <button class="btn btn-danger" onclick="if(confirm('Logout?'))doLogout()">🚪 Logout</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded",async()=>{
+  redirectIfNotLoggedIn();
+  const res=await Api.get("/users/profile");
+  if(!res?.success)return;
+  const u=res.user;
+  document.getElementById("profile-view").innerHTML=`
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+      <div style="width:56px;height:56px;background:var(--primary-light);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.8rem;">
+        ${u.role==="farmer"?"👨‍🌾":"🚜"}
+      </div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:700;">${u.name}</div>
+        <div style="font-size:.85rem;color:var(--text-muted);">${u.email} &nbsp;·&nbsp; ${u.phone}</div>
+        <div style="font-size:.82rem;color:var(--text-muted);">📍 ${[u.village,u.mandal,u.district,u.state].filter(Boolean).join(", ")||"Location not set"}</div>
+        <span class="card-badge ${u.role==="farmer"?"badge-green":"badge-blue"}" style="margin-top:.3rem;display:inline-block;">${u.role.toUpperCase()}</span>
+      </div>
+    </div>`;
+  ["name","language","village","mandal","district","state"].forEach(f=>{
+    const el=document.getElementById(`p-${f}`);
+    if(el) el.value=u[f]||"";
+  });
+  document.getElementById("p-lang").value=u.language||"en";
+});
+
+async function saveProfile(){
+  const res=await Api.put("/users/profile",{
+    name:document.getElementById("p-name").value.trim(),
+    language:document.getElementById("p-lang").value,
+    village:document.getElementById("p-village").value.trim(),
+    mandal:document.getElementById("p-mandal").value.trim(),
+    district:document.getElementById("p-district").value.trim(),
+    state:document.getElementById("p-state").value.trim(),
+  });
+  const msg=document.getElementById("p-msg");
+  if(res?.success){
+    msg.className="alert alert-success";msg.textContent="Profile updated!";msg.style.display="block";
+    const u=Auth.getUser();if(u){Auth.setSession(Auth.getToken(),{...u,...res.user});}
+    setTimeout(()=>msg.style.display="none",2500);
+  }else{
+    msg.className="alert alert-error";msg.textContent=res?.message||"Update failed.";msg.style.display="block";
+  }
+}
+</script>
+{% endblock %}

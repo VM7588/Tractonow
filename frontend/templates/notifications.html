@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="container page-wrap">
+  <div class="dashboard-header"><h2>🔔 Notifications & Season Alerts</h2><p>Stay updated on crop seasons, booking reminders, and cancellation windows.</p></div>
+  <div id="notif-list"><div class="spinner" style="display:block;margin:2rem auto;"></div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded",async()=>{
+  redirectIfNotLoggedIn();
+  const res=await Api.get("/notifications/");
+  const el=document.getElementById("notif-list");
+  if(!res?.success||!res.notifications.length){
+    el.innerHTML=`<div class="card" style="text-align:center;padding:2rem;color:var(--text-muted);">
+      <p style="font-size:2rem;">📭</p><p>No notifications right now. Check back later!</p></div>`;
+    return;
+  }
+  const typeStyles={warning:"alert-warning",info:"alert-info",success:"alert-success"};
+  el.innerHTML=res.notifications.map(n=>`
+    <div class="alert ${typeStyles[n.type]||"alert-info"}" style="margin-bottom:.75rem;">
+      <strong>${n.title}</strong>
+      <p style="margin-top:.25rem;font-size:.88rem;">${n.message}</p>
+      <div style="font-size:.75rem;opacity:.7;margin-top:.2rem;">${new Date(n.created_at).toLocaleString("en-IN")}</div>
+    </div>`).join("");
+});
+</script>
+{% endblock %}

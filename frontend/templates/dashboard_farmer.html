@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}Farmer Dashboard{% endblock %}
+{% block content %}
+<div class="container page-wrap">
+  <div class="dashboard-header">
+    <h2>👨‍🌾 Welcome, <span id="fname"></span>!</h2>
+    <p id="floc" style="opacity:.85;"></p>
+    <div style="margin-top:.85rem;display:flex;gap:.65rem;flex-wrap:wrap;">
+      <a href="/booking"       class="btn btn-sm" style="background:#fff;color:var(--primary);">📅 Book Equipment</a>
+      <a href="/group-booking" class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.35);">👥 Group Booking</a>
+      <a href="/notifications" class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.35);">🔔 Alerts <span id="nb-badge" style="display:none;background:#ef4444;color:#fff;border-radius:99px;padding:.05rem .4rem;font-size:.72rem;margin-left:.25rem;"></span></a>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-cards">
+    <div class="stat-card"><div class="stat-value" id="st-total">—</div><div class="stat-label">Total Bookings</div></div>
+    <div class="stat-card"><div class="stat-value" id="st-active">—</div><div class="stat-label">Active</div></div>
+    <div class="stat-card"><div class="stat-value" id="st-done">—</div><div class="stat-label">Completed</div></div>
+    <div class="stat-card"><div class="stat-value" id="st-spent">—</div><div class="stat-label">Total Spent</div></div>
+  </div>
+
+  <!-- AI + Weather -->
+  <div class="grid-2" style="margin-bottom:2rem;">
+    <div>
+      <h3 style="margin-bottom:.65rem;">🤖 AI Crop Demand This Month</h3>
+      <div id="ai-widget"><div class="spinner" style="display:block;margin:.5rem 0;"></div></div>
+    </div>
+    <div>
+      <h3 style="margin-bottom:.65rem;">🌦️ Weather & 5-Day Forecast</h3>
+      <div id="wx-widget"><div class="spinner" style="display:block;margin:.5rem 0;"></div></div>
+    </div>
+  </div>
+
+  <!-- Available Equipment Near You -->
+  <div class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.85rem;">
+      <h3>🚜 Available Equipment Near You</h3>
+      <a href="/booking" class="btn btn-primary btn-sm">View All Equipment</a>
+    </div>
+    <div id="eq-nearby" class="grid-3"><div class="spinner" style="display:block;margin:2rem auto;"></div></div>
+  </div>
+
+  <!-- Demand Stats -->
+  <div class="section">
+    <h3 style="margin-bottom:.75rem;">📊 Booking Demand Stats</h3>
+    <div id="demand-stats"><div class="spinner" style="display:block;margin:1rem auto;"></div></div>
+  </div>
+
+  <!-- My Bookings -->
+  <div class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.85rem;">
+      <h3>📋 My Bookings</h3>
+      <a href="/booking" class="btn btn-primary btn-sm">+ New Booking</a>
+    </div>
+    <div id="bk-list"><div class="spinner" style="display:block;margin:2rem auto;"></div></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const TYPE_EMOJI={"tractor":"🚜","harvester":"🌾","sprayer":"💧","rotavator":"⚙️","seed_drill":"🌱","cultivator":"🔧","plough":"🪵","thresher":"🌀"};
+
+document.addEventListener("DOMContentLoaded",async()=>{
+  redirectIfNotLoggedIn();
+  const u=Auth.getUser();
+  if(u?.role!=="farmer"){window.location.href="/dashboard/owner";return;}
+  document.getElementById("fname").textContent=u.name;
+  document.getElementById("floc").textContent=u.district
+    ?`📍 ${[u.village,u.mandal,u.district,u.state].filter(Boolean).join(", ")}`
+    :"📍 Set your location in profile for better results";
+  await Promise.all([loadBk(),loadWeather(),loadAI(),loadDemandStats(),loadNearbyEquipment(),loadNotifBadge()]);
+});
+
+async function loadNotifBadge(){
+  const res=await Api.get("/notifications/");
+  if(res?.success&&res.unread>0){const b=document.getElementById("nb-badge");b.textContent=res.unread;b.style.display="inline";}
+}
+
+async function loadNearbyEquipment(){
+  const u=Auth.getUser();
+  let q="/equipment/?available=true";
+  if(u?.district) q+=`&district=${encodeURIComponent(u.district)}`;
+  const res=await Api.get(q);
+  const el=document.getElementById("eq-nearby");
+  if(!res?.success||!res.equipment.length){
+    // fallback: load all available
+    const all=await Api.get("/equipment/?available=true");
+    if(!all?.success||!all.equipment.length){
+      el.innerHTML=`<p style="color:var(--text-muted);grid-column:1/-1;">No equipment available. <a href="/booking">Search all equipment</a></p>`;return;}
+    renderEquipment(el,all.equipment.slice(0,6));return;
+  }
+  renderEquipment(el,res.equipment.slice(0,6));
+}
+
+function renderEquipment(el,items){
+  el.innerHTML=items.map(eq=>`
+    <div class="card" style="padding:1rem;">
+      ${eq.image_url
+        ?`<img src="${eq.image_url}" alt="${eq.name}" style="width:100%;height:130px;object-fit:cover;border-radius:var(--radius);margin-bottom:.65rem;"/>`
+        :`<div style="width:100%;height:80px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:var(--radius);margin-bottom:.65rem;display:flex;align-items:center;justify-content:center;font-size:2.4rem;">${TYPE_EMOJI[eq.type]||"🚜"}</div>`}
+      <div style="display:flex;justify-content:space-between;margin-bottom:.3rem;">
+        <span class="card-badge badge-blue" style="text-transform:capitalize;font-size:.72rem;">${eq.type.replace("_"," ")}</span>
+        <span class="availability-dot dot-green"></span>
+      </div>
+      <div style="font-weight:600;font-size:.95rem;margin-bottom:.2rem;">${eq.name}</div>
+      <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.4rem;">📍 ${[eq.location?.village,eq.location?.district].filter(Boolean).join(", ")||"—"}</div>
+      <div style="font-weight:700;color:var(--primary);margin-bottom:.6rem;">${formatCurrency(eq.price_per_hour)}/hr</div>
+      <a href="/booking" class="btn btn-primary btn-full btn-sm">📅 Book Now</a>
+    </div>`).join("");
+}
+
+async function loadAI(){
+  const u=Auth.getUser();
+  const res=await Api.get(`/ai/crop-demand?district=${encodeURIComponent(u?.district||"")}`);
+  const el=document.getElementById("ai-widget");
+  if(!res?.success){el.innerHTML="<p style='color:var(--text-muted);'>Could not load AI data.</p>";return;}
+  const colors={"High":"#ef4444","Moderate":"#f59e0b","Low":"#22c55e"};
+  el.innerHTML=`
+    <div class="card" style="padding:1rem;border-left:4px solid ${colors[res.top_crop?.demand]||"#16a34a"};">
+      <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:.4rem;">📅 ${res.month_name} Forecast</div>
+      <div style="font-weight:700;font-size:1rem;margin-bottom:.3rem;">${res.top_crop?.icon} ${res.top_crop?.crop?.toUpperCase()} — ${res.top_crop?.demand} Demand</div>
+      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:.65rem;">${res.tip}</p>
+      <div style="display:flex;flex-wrap:wrap;gap:.3rem;">
+        ${res.all_crops.map(c=>`<span style="background:${colors[c.demand]}20;color:${colors[c.demand]};border:1px solid ${colors[c.demand]}40;border-radius:99px;padding:.15rem .55rem;font-size:.75rem;font-weight:600;">${c.icon} ${c.crop}</span>`).join("")}
+      </div>
+    </div>`;
+}
+
+async function loadWeather(){
+  const res=await Api.get("/weather/forecast");
+  const el=document.getElementById("wx-widget");
+  if(!res?.success){el.innerHTML="<p style='color:var(--text-muted);'>Weather data unavailable.</p>";return;}
+  const w=res.current;const a=res.advice;const fc=res.daily_forecast||[];
+  el.innerHTML=`
+    <div style="display:flex;gap:.65rem;flex-wrap:wrap;margin-bottom:.65rem;">
+      <div class="weather-card" style="flex:1;min-width:130px;">
+        <div class="temp">${w.temp_c}°C</div>
+        <div class="cond">${w.description}</div>
+        <div style="font-size:.78rem;opacity:.85;margin-top:.25rem;">💧${w.humidity}% &nbsp;💨${w.wind_kph}km/h</div>
+      </div>
+      <div class="${a.safe_to_operate?"weather-safe":"weather-warning"}" style="flex:2;min-width:140px;">
+        <strong>${a.safe_to_operate?"✅ Safe to operate":"⚠️ Caution"}</strong>
+        <p style="font-size:.82rem;margin-top:.25rem;">${a.suggestion}</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:.35rem;overflow-x:auto;padding-bottom:.2rem;">
+      ${fc.map(d=>`<div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:.5rem .65rem;text-align:center;min-width:62px;flex-shrink:0;border-top:3px solid ${d.safe?"#22c55e":"#ef4444"};">
+        <div style="font-size:.72rem;color:var(--text-muted);">${d.date.slice(5)}</div>
+        <div style="font-size:1.2rem;">${d.icon}</div>
+        <div style="font-size:.78rem;font-weight:600;">${d.max_temp}°</div>
+        <div style="font-size:.7rem;color:var(--text-muted);">${d.min_temp}°</div>
+        ${d.rain_mm>0?`<div style="font-size:.68rem;color:#3b82f6;">🌧${d.rain_mm}mm</div>`:""}
+      </div>`).join("")}
+    </div>`;
+}
+
+async function loadDemandStats(){
+  const res=await Api.get("/bookings/stats/demand");
+  const el=document.getElementById("demand-stats");
+  if(!res?.success||!res.demand_stats.length){el.innerHTML="<p style='color:var(--text-muted);font-size:.9rem;'>No booking data yet.</p>";return;}
+  const max=Math.max(...res.demand_stats.map(s=>s.bookings));
+  el.innerHTML=`<div class="card" style="padding:1rem;">
+    ${res.demand_stats.map(s=>`
+      <div style="margin-bottom:.75rem;">
+        <div style="display:flex;justify-content:space-between;font-size:.88rem;margin-bottom:.25rem;">
+          <span style="text-transform:capitalize;font-weight:600;">${s.crop||"unknown"}</span>
+          <span style="color:var(--text-muted);">${s.bookings} bookings · ${formatCurrency(s.revenue)} · ${s.percent}%</span>
+        </div>
+        <div style="background:var(--border);border-radius:99px;height:8px;overflow:hidden;">
+          <div style="background:var(--primary);height:100%;border-radius:99px;width:${Math.round(s.bookings/max*100)}%;transition:width .5s;"></div>
+        </div>
+      </div>`).join("")}
+  </div>`;
+}
+
+async function loadBk(){
+  const res=await Api.get("/bookings/my");
+  const el=document.getElementById("bk-list");
+  if(!res?.success||!res.bookings.length){
+    el.innerHTML=`<div style="text-align:center;padding:2rem;color:var(--text-muted);">
+      <p style="font-size:2rem;">📭</p><p>No bookings yet. <a href="/booking">Book your first equipment!</a></p></div>`;
+    return;
+  }
+  const bks=res.bookings;
+  document.getElementById("st-total").textContent=bks.length;
+  document.getElementById("st-active").textContent=bks.filter(b=>["confirmed","in_progress"].includes(b.status)).length;
+  document.getElementById("st-done").textContent=bks.filter(b=>b.status==="completed").length;
+  document.getElementById("st-spent").textContent=formatCurrency(bks.reduce((s,b)=>s+b.total_price,0));
+
+  el.innerHTML=`<div class="table-wrap"><table>
+    <thead><tr><th>Equipment</th><th>Crop</th><th>Date</th><th>Hrs</th><th>Amount</th><th>Payment</th><th>Status</th><th>Cancel Window</th><th>Actions</th></tr></thead>
+    <tbody>${bks.map(b=>{
+      let cInfo="—";
+      if(b.can_cancel&&b.status==="confirmed"){
+        const m=Math.floor(b.cancel_seconds_remaining/60),s=b.cancel_seconds_remaining%60;
+        cInfo=`<span style="color:#f59e0b;font-weight:600;font-size:.82rem;">⏰ ${m}m ${s}s left</span>`;
+      }
+      return `<tr>
+        <td style="font-size:.82rem;">${b.equipment_id.slice(-6)}</td>
+        <td style="text-transform:capitalize;font-size:.82rem;">${b.crop_type}</td>
+        <td style="font-size:.82rem;">${formatDate(b.booking_date)}</td>
+        <td style="font-size:.82rem;">${b.hours_required}h</td>
+        <td style="font-size:.82rem;">${formatCurrency(b.total_price)}</td>
+        <td>${b.payment_status==="paid"
+          ?`<span class="card-badge badge-green" style="font-size:.72rem;">✅ Paid</span>`
+          :`<a href="/payment?booking_id=${b.id}" class="btn btn-sm btn-accent" style="font-size:.75rem;">💳 Pay</a>`}</td>
+        <td>${statusBadge(b.status)}</td>
+        <td style="font-size:.82rem;">${cInfo}</td>
+        <td style="display:flex;gap:.3rem;flex-wrap:wrap;">
+          ${["confirmed","in_progress"].includes(b.status)?`<a href="/tracking?booking_id=${b.id}" class="btn btn-sm btn-outline">📍</a>`:""}
+          ${b.status==="completed"?`<a href="/rating?booking_id=${b.id}&equipment_id=${b.equipment_id}" class="btn btn-sm btn-accent">⭐</a>`:""}
+          ${b.can_cancel?`<button class="btn btn-sm btn-danger" onclick="cancelBk('${b.id}')">✕</button>`:""}
+        </td>
+      </tr>`;}).join("")}
+    </tbody></table></div>`;
+}
+
+async function cancelBk(id){
+  if(!confirm("Cancel this booking?"))return;
+  const res=await Api.put(`/bookings/${id}/cancel`,{});
+  if(res?.success){Toast.success("Booking cancelled.");loadBk();}
+  else Toast.error(res?.message||"Cannot cancel.");
+}
+</script>
+{% endblock %}

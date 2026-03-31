@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="theme-color" content="#16a34a"/>
+  <title>{% block title %}TractoNow{% endblock %} | TractoNow 🚜</title>
+  <link rel="manifest" href="/manifest.json"/>
+  <link rel="icon" href="/static/images/favicon.svg" type="image/svg+xml"/>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+  {% block head_extra %}{% endblock %}
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    /* ── Mobile navbar ── */
+    @media(max-width:640px){.navbar-links:not(.open){display:none;}}
+    .navbar-links.open{display:flex;flex-direction:column;position:absolute;
+      top:60px;left:0;right:0;background:var(--primary-dark);
+      padding:1rem;gap:.8rem;z-index:99;}
+
+    /* ── Navbar auth buttons — FIXED visible text ── */
+    #nb-login, #nb-register {
+      background:#fff !important;
+      color:var(--primary) !important;
+      padding:.35rem .9rem;
+      border-radius:99px;
+      font-weight:600;
+      font-size:.88rem;
+      text-decoration:none;
+      white-space:nowrap;
+      border: none;
+    }
+    #nb-login:hover, #nb-register:hover { opacity:.88; text-decoration:none; }
+
+    /* ── Profile dropdown — click-based ── */
+    .profile-dropdown { position:relative; display:inline-block; }
+    .dropdown-menu {
+      display:none; position:absolute; right:0; top:calc(100% + 10px);
+      background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+      min-width:200px; box-shadow:0 8px 24px rgba(0,0,0,.15); z-index:9999; overflow:hidden;
+    }
+    .dropdown-menu.show { display:block; }
+    .dropdown-menu a, .dropdown-menu button {
+      display:flex; align-items:center; gap:.6rem; width:100%; text-align:left;
+      padding:.75rem 1rem; font-size:.92rem; color:var(--text);
+      border:none; background:none; cursor:pointer; text-decoration:none;
+    }
+    .dropdown-menu a:hover, .dropdown-menu button:hover {
+      background:#f0fdf4; color:var(--primary);
+    }
+    .dropdown-menu hr { margin:.2rem 0; border:none; border-top:1px solid var(--border); }
+
+    /* ── AI Fab ── */
+    .ai-fab {
+      position:fixed; bottom:2rem; right:2rem; z-index:990;
+      background:linear-gradient(135deg,#16a34a,#059669);
+      color:#fff; border:none; width:58px; height:58px; border-radius:50%;
+      font-size:1.5rem; cursor:pointer;
+      box-shadow:0 4px 20px rgba(22,163,74,.45);
+      display:flex; align-items:center; justify-content:center;
+      transition:transform .2s;
+    }
+    .ai-fab:hover { transform:scale(1.08); }
+    .ai-popup {
+      display:none; position:fixed; bottom:6.5rem; right:2rem; z-index:989;
+      width:310px; background:#fff; border-radius:var(--radius-lg);
+      box-shadow:0 8px 32px rgba(0,0,0,.18); border:1px solid var(--border);
+      padding:1.25rem; max-height:72vh; overflow-y:auto;
+    }
+    .notif-dot {
+      width:8px; height:8px; background:#ef4444; border-radius:50%;
+      display:inline-block; margin-left:3px; vertical-align:middle;
+    }
+
+    /* ── Equipment image — PORTRAIT card fix ── */
+    .eq-img-wrap {
+      width:100%; aspect-ratio:4/3;
+      overflow:hidden; border-radius:var(--radius);
+      margin-bottom:.75rem; background:#f0fdf4;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .eq-img-wrap img {
+      width:100%; height:100%;
+      object-fit:cover; object-position:center;
+      display:block;
+    }
+    .eq-emoji-placeholder {
+      font-size:3rem; color:var(--primary);
+    }
+
+    /* ── Language button active state ── */
+    .lang-btn { 
+      padding:.25rem .6rem; border-radius:99px;
+      border:1px solid rgba(255,255,255,.5);
+      font-size:.82rem; cursor:pointer;
+      background:rgba(255,255,255,.15);
+      color:#fff; transition:all .15s;
+    }
+    .lang-btn.active, .lang-btn:hover {
+      background:#fff; color:var(--primary);
+    }
+
+    /* ── Toast container ── */
+    #toast-container {
+      position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999;
+      display:flex; flex-direction:column; gap:.6rem;
+    }
+    .toast {
+      background:#1f2937; color:#fff; padding:.75rem 1.25rem;
+      border-radius:var(--radius); font-size:.9rem; min-width:240px;
+      box-shadow:var(--shadow-md); opacity:1; transition:opacity .3s;
+    }
+    .toast.success { border-left:4px solid #22c55e; }
+    .toast.error   { border-left:4px solid #ef4444; }
+    .toast.warning { border-left:4px solid #f59e0b; }
+  </style>
+</head>
+<body>
+  {% if request.path == '/' %}
+<video autoplay muted loop playsinline id="bg-video">
+  <source src="{{ url_for('static', filename='videos/farming.mp4') }}" type="video/mp4">
+</video>
+{% endif %}
+<!-- PWA Banner -->
+<div id="pwa-install-banner" style="display:none;background:var(--primary);color:#fff;
+     padding:.55rem 1rem;align-items:center;justify-content:center;gap:1rem;font-size:.88rem;">
+  <span>📱 Install TractoNow on your phone!</span>
+  <button id="pwa-install-btn" class="btn btn-sm"
+    style="background:#fff;color:var(--primary);">Install</button>
+  <button id="pwa-dismiss-btn"
+    style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.1rem;">✕</button>
+</div>
+
+<!-- Navbar -->
+<nav class="navbar" style="position:relative;">
+  <a href="/" class="navbar-brand">🚜 TractoNow</a>
+  <button class="hamburger"
+    onclick="document.getElementById('nb').classList.toggle('open')">☰</button>
+
+  <div class="navbar-links" id="nb">
+    <a href="/booking">Book Equipment</a>
+    <a href="/group-booking">Group Booking</a>
+    <a href="/about">About</a>
+    <a href="/dashboard/farmer" id="nb-farmer" style="display:none;">My Bookings</a>
+    <a href="/dashboard/owner"  id="nb-owner"  style="display:none;">My Equipment</a>
+
+    <!-- Language switcher — works on ALL pages -->
+    <div class="lang-switcher" id="lang-switcher">
+      <button class="lang-btn" data-lang="en" onclick="changeLang('en')">EN</button>
+      <button class="lang-btn" data-lang="te" onclick="changeLang('te')">TE</button>
+      <button class="lang-btn" data-lang="hi" onclick="changeLang('hi')">HI</button>
+    </div>
+
+    <!-- ── Guest buttons — always visible with text ── -->
+    <a href="/login"    id="nb-login"    style="display:none;">Login</a>
+    <a href="/register" id="nb-register" style="display:none;">Register</a>
+
+    <!-- ── Logged-in profile dropdown ── -->
+    <div class="profile-dropdown" id="nb-profile" style="display:none;">
+      <button id="profile-toggle"
+        style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+               color:#fff;padding:.4rem .9rem;border-radius:99px;cursor:pointer;
+               font-size:.9rem;font-weight:600;display:flex;align-items:center;gap:.4rem;">
+        👤 <span id="nb-name">User</span> ▾
+      </button>
+      <div class="dropdown-menu" id="profile-menu">
+        <a href="/profile">👤 My Profile</a>
+        <a href="/notifications">🔔 Alerts
+          <span id="nb-notif-dot" style="display:none;" class="notif-dot"></span>
+        </a>
+        <a href="/payment">💳 Payments</a>
+        <a href="/dashboard/farmer" id="dm-farmer" style="display:none;">📋 My Bookings</a>
+        <a href="/dashboard/owner"  id="dm-owner"  style="display:none;">🛠 My Equipment</a>
+        <hr/>
+        <button onclick="doLogout()">🚪 Logout</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<main>{% block content %}{% endblock %}</main>
+
+<footer>
+  <p>🚜 TractoNow &nbsp;|&nbsp; Smart Agri Equipment &nbsp;|&nbsp;
+     Made with ❤️ for rural India 🇮🇳 &nbsp;·&nbsp;
+     <a href="/about" style="color:#d1fae5;">About Us</a></p>
+</footer>
+
+<!-- AI Float Button -->
+<button class="ai-fab" id="ai-fab" style="display:none;"
+  onclick="toggleAIPanel()" title="AI Crop Demand">🤖</button>
+<div class="ai-popup" id="ai-popup">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+    <strong>🤖 AI Crop Demand</strong>
+    <button onclick="toggleAIPanel()"
+      style="background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+  </div>
+  <div id="ai-popup-content">
+    <div class="spinner" style="display:block;margin:.5rem auto;"></div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- ── Scripts ─────────────────────────────────────────────────────── -->
+<script src="/static/js/main.js"></script>
+<script src="/static/js/pwa.js"></script>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  Universal Translator — works on EVERY page, NO data-i18n needed
+//  Translates navbar, buttons, labels, headings by their text
+// ══════════════════════════════════════════════════════════════
+
+const LANG_DATA = {
+  te: {
+    // Navbar & common
+    "Book Equipment": "పరికరాన్ని బుక్ చేయండి",
+    "Group Booking":  "గ్రూప్ బుకింగ్",
+    "About":          "గురించి",
+    "My Bookings":    "నా బుకింగ్‌లు",
+    "My Equipment":   "నా పరికరాలు",
+    "Login":          "లాగిన్",
+    "Register":       "నమోదు చేయండి",
+    "Logout":         "లాగ్ అవుట్",
+    "My Profile":     "నా ప్రొఫైల్",
+    "Alerts":         "హెచ్చరికలు",
+    "Payments":       "చెల్లింపులు",
+    // Auth pages
+    "Login":                    "లాగిన్",
+    "Create Account":           "ఖాతా సృష్టించండి",
+    "Email":                    "ఇమెయిల్",
+    "Password":                 "పాస్‌వర్డ్",
+    "Full Name":                "పూర్తి పేరు",
+    "Phone":                    "ఫోన్",
+    "Village":                  "గ్రామం",
+    "Mandal":                   "మండలం",
+    "District":                 "జిల్లా",
+    "State":                    "రాష్ట్రం",
+    "Preferred Language":       "ఇష్టపడే భాష",
+    "Forgot password?":         "పాస్‌వర్డ్ మర్చిపోయారా?",
+    "Register here":            "ఇక్కడ నమోదు చేయండి",
+    "Don't have an account?":   "ఖాతా లేదా?",
+    "Already have an account?": "ఇప్పటికే ఖాతా ఉందా?",
+    "I am a…":                  "నేను…",
+    "Farmer":                   "రైతు",
+    "Owner":                    "యజమాని",
+    "Book equipment":           "పరికరాన్ని బుక్ చేయండి",
+    "List & earn":              "జాబితా & సంపాదించండి",
+    // Dashboard
+    "Available Equipment Near You": "మీ దగ్గర అందుబాటులో ఉన్న పరికరాలు",
+    "View All Equipment":           "అన్ని పరికరాలు చూడండి",
+    "My Bookings":                  "నా బుకింగ్‌లు",
+    "New Booking":                  "+ కొత్త బుకింగ్",
+    "Total Bookings":               "మొత్తం బుకింగ్‌లు",
+    "Active":                       "క్రియాశీలం",
+    "Completed":                    "పూర్తయింది",
+    "Total Spent":                  "మొత్తం ఖర్చు",
+    "Booking Demand Stats":         "బుకింగ్ డిమాండ్ గణాంకాలు",
+    "AI Crop Demand This Month":    "ఈ నెల AI పంట డిమాండ్",
+    "Weather & 5-Day Forecast":     "వాతావరణం & 5-రోజుల అంచనా",
+    // Equipment
+    "Book Now":           "ఇప్పుడు బుక్ చేయండి",
+    "Not Available":      "అందుబాటులో లేదు",
+    "Available":          "అందుబాటులో ఉంది",
+    "Add Equipment":      "పరికరం జోడించండి",
+    "Add New":            "+ కొత్తది జోడించండి",
+    "Edit":               "సవరించు",
+    "Delete":             "తొలగించు",
+    "Set Unavailable":    "అందుబాటులో లేదు అని సెట్ చేయండి",
+    "Set Available":      "అందుబాటులో ఉంది అని సెట్ చేయండి",
+    // Booking
+    "Crop Type":          "పంట రకం",
+    "Hours Required":     "అవసరమైన గంటలు",
+    "Booking Date":       "బుకింగ్ తేదీ",
+    "Confirm Booking":    "బుకింగ్ నిర్ధారించండి",
+    "Total":              "మొత్తం",
+    "Pay":                "చెల్లించు",
+    "Cancel":             "రద్దు చేయండి",
+    "Track":              "ట్రాక్",
+    "Rate":               "రేటింగ్",
+    // Group
+    "Browse Open Groups": "తెరిచిన గ్రూప్‌లు చూడండి",
+    "Create Group":       "గ్రూప్ సృష్టించండి",
+    "Join":               "చేరండి",
+    "Leave":              "వదిలివెళ్ళండి",
+    "Members":            "సభ్యులు",
+    // Payment
+    "Pay Now":            "ఇప్పుడు చెల్లించండి",
+    "Payment successful": "చెల్లింపు విజయవంతమైంది",
+    "Add Payment Method": "చెల్లింపు పద్ధతి జోడించండి",
+    // Misc
+    "Refresh":            "రిఫ్రెష్",
+    "Back":               "వెనుకకు",
+    "Save":               "సేవ్ చేయండి",
+    "Submit":             "సమర్పించండి",
+    "Search":             "శోధించు",
+    "Filter":             "ఫిల్టర్",
+  },
+  hi: {
+    // Navbar & common
+    "Book Equipment": "उपकरण बुक करें",
+    "Group Booking":  "समूह बुकिंग",
+    "About":          "के बारे में",
+    "My Bookings":    "मेरी बुकिंग",
+    "My Equipment":   "मेरे उपकरण",
+    "Login":          "लॉगिन",
+    "Register":       "पंजीकरण करें",
+    "Logout":         "लॉग आउट",
+    "My Profile":     "मेरी प्रोफ़ाइल",
+    "Alerts":         "अलर्ट",
+    "Payments":       "भुगतान",
+    // Auth
+    "Create Account":           "खाता बनाएं",
+    "Email":                    "ईमेल",
+    "Password":                 "पासवर्ड",
+    "Full Name":                "पूरा नाम",
+    "Phone":                    "फोन",
+    "Village":                  "गांव",
+    "Mandal":                   "मंडल",
+    "District":                 "जिला",
+    "State":                    "राज्य",
+    "Preferred Language":       "पसंदीदा भाषा",
+    "Forgot password?":         "पासवर्ड भूल गए?",
+    "Register here":            "यहाँ पंजीकरण करें",
+    "Don't have an account?":   "खाता नहीं है?",
+    "Already have an account?": "पहले से खाता है?",
+    "I am a…":                  "मैं हूँ…",
+    "Farmer":                   "किसान",
+    "Owner":                    "मालिक",
+    "Book equipment":           "उपकरण बुक करें",
+    "List & earn":              "सूचीबद्ध करें और कमाएं",
+    // Dashboard
+    "Available Equipment Near You": "आपके पास उपलब्ध उपकरण",
+    "View All Equipment":           "सभी उपकरण देखें",
+    "My Bookings":                  "मेरी बुकिंग",
+    "New Booking":                  "+ नई बुकिंग",
+    "Total Bookings":               "कुल बुकिंग",
+    "Active":                       "सक्रिय",
+    "Completed":                    "पूर्ण",
+    "Total Spent":                  "कुल खर्च",
+    "Booking Demand Stats":         "बुकिंग मांग आँकड़े",
+    "AI Crop Demand This Month":    "इस माह AI फसल माँग",
+    "Weather & 5-Day Forecast":     "मौसम और 5-दिन का पूर्वानुमान",
+    // Equipment
+    "Book Now":        "अभी बुक करें",
+    "Not Available":   "उपलब्ध नहीं",
+    "Available":       "उपलब्ध",
+    "Add Equipment":   "उपकरण जोड़ें",
+    "Add New":         "+ नया जोड़ें",
+    "Edit":            "संपादित करें",
+    "Delete":          "हटाएं",
+    "Set Unavailable": "अनुपलब्ध सेट करें",
+    "Set Available":   "उपलब्ध सेट करें",
+    // Booking
+    "Crop Type":       "फसल का प्रकार",
+    "Hours Required":  "आवश्यक घंटे",
+    "Booking Date":    "बुकिंग तिथि",
+    "Confirm Booking": "बुकिंग की पुष्टि करें",
+    "Total":           "कुल",
+    "Pay":             "भुगतान करें",
+    "Cancel":          "रद्द करें",
+    "Track":           "ट्रैक करें",
+    "Rate":            "रेट करें",
+    // Group
+    "Browse Open Groups": "खुले समूह देखें",
+    "Create Group":       "समूह बनाएं",
+    "Join":               "शामिल हों",
+    "Leave":              "छोड़ें",
+    "Members":            "सदस्य",
+    // Payment
+    "Pay Now":            "अभी भुगतान करें",
+    "Payment successful": "भुगतान सफल",
+    "Add Payment Method": "भुगतान विधि जोड़ें",
+    // Misc
+    "Refresh": "रिफ्रेश",
+    "Back":    "वापस",
+    "Save":    "सहेजें",
+    "Submit":  "जमा करें",
+    "Search":  "खोजें",
+    "Filter":  "फ़िल्टर",
+  }
+};
+
+// Current language
+let _currentLang = localStorage.getItem("tractonow_lang")
+  || JSON.parse(localStorage.getItem("tractonow_user")||"null")?.language
+  || "en";
+
+function changeLang(lang) {
+  _currentLang = lang;
+  localStorage.setItem("tractonow_lang", lang);
+
+  // Highlight active button
+  document.querySelectorAll(".lang-btn").forEach(b =>
+    b.classList.toggle("active", b.dataset.lang === lang));
+
+  // Apply translations
+  applyPageTranslations(lang);
+
+  // Persist to backend
+  const token = localStorage.getItem("tractonow_token");
+  if (token) {
+    fetch("/api/users/profile", {
+      method: "PUT",
+      headers: {"Content-Type":"application/json","Authorization":"Bearer "+token},
+      body: JSON.stringify({language: lang})
+    }).catch(()=>{});
+  }
+}
+
+function applyPageTranslations(lang) {
+  if (lang === "en") {
+    // English — restore original text from data-en attributes
+    document.querySelectorAll("[data-en]").forEach(el => {
+      el.textContent = el.getAttribute("data-en");
+    });
+    // Restore placeholders
+    document.querySelectorAll("[data-en-ph]").forEach(el => {
+      el.placeholder = el.getAttribute("data-en-ph");
+    });
+    document.documentElement.lang = "en";
+    return;
+  }
+
+  const dict = LANG_DATA[lang] || {};
+
+  // 1. Translate elements with data-i18n attribute
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if (dict[key]) {
+      if (!el.getAttribute("data-en")) el.setAttribute("data-en", el.textContent);
+      el.textContent = dict[key];
+    }
+  });
+
+  // 2. Translate ALL text nodes by content matching (no attribute needed)
+  translateTextNodes(document.body, dict);
+
+  // 3. Translate placeholders
+  document.querySelectorAll("input[placeholder], textarea[placeholder]").forEach(el => {
+    const orig = el.getAttribute("data-en-ph") || el.placeholder;
+    if (!el.getAttribute("data-en-ph")) el.setAttribute("data-en-ph", orig);
+    if (dict[orig]) el.placeholder = dict[orig];
+  });
+
+  // 4. Translate select options
+  document.querySelectorAll("option").forEach(el => {
+    const orig = el.getAttribute("data-en") || el.textContent.trim();
+    if (!el.getAttribute("data-en")) el.setAttribute("data-en", orig);
+    if (dict[orig]) el.textContent = dict[orig];
+  });
+
+  document.documentElement.lang = lang;
+}
+
+function translateTextNodes(node, dict) {
+  // Skip script, style, input, textarea tags
+  const skip = new Set(["SCRIPT","STYLE","INPUT","TEXTAREA","CODE","PRE"]);
+  if (skip.has(node.nodeName)) return;
+
+  node.childNodes.forEach(child => {
+    if (child.nodeType === Node.TEXT_NODE) {
+      const text = child.textContent.trim();
+      if (text.length > 1 && dict[text]) {
+        // Save original for English restore
+        if (!child.parentElement?.getAttribute("data-en")) {
+          child.parentElement?.setAttribute("data-en", child.textContent);
+        }
+        child.textContent = child.textContent.replace(text, dict[text]);
+      }
+    } else if (child.nodeType === Node.ELEMENT_NODE) {
+      translateTextNodes(child, dict);
+    }
+  });
+}
+
+// ── Navbar auth state ─────────────────────────────────────────────────
+(function initNavbar() {
+  const user  = JSON.parse(localStorage.getItem("tractonow_user") || "null");
+  const token = localStorage.getItem("tractonow_token");
+  const lang  = localStorage.getItem("tractonow_lang")
+             || user?.language || "en";
+
+  // Set active lang button & apply translations on EVERY page load
+  document.querySelectorAll(".lang-btn").forEach(b =>
+    b.classList.toggle("active", b.dataset.lang === lang));
+  // Apply after DOM is ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => applyPageTranslations(lang));
+  } else {
+    applyPageTranslations(lang);
+  }
+
+  if (token && user) {
+    document.getElementById("nb-login").style.display    = "none";
+    document.getElementById("nb-register").style.display = "none";
+    document.getElementById("nb-profile").style.display  = "inline-block";
+    document.getElementById("nb-name").textContent       = user.name;
+    document.getElementById("ai-fab").style.display      = "flex";
+    if (user.role==="farmer") {
+      document.getElementById("nb-farmer").style.display = "inline-block";
+      document.getElementById("dm-farmer").style.display = "flex";
+    }
+    if (user.role==="owner") {
+      document.getElementById("nb-owner").style.display = "inline-block";
+      document.getElementById("dm-owner").style.display = "flex";
+    }
+    // Notification dot
+    fetch("/api/notifications/", {headers:{"Authorization":"Bearer "+token}})
+      .then(r=>r.json())
+      .then(d=>{
+        if (d.unread>0)
+          document.getElementById("nb-notif-dot").style.display="inline-block";
+      }).catch(()=>{});
+  } else {
+    document.getElementById("nb-profile").style.display = "none";
+    document.getElementById("nb-login").style.display    = "inline-block";
+    document.getElementById("nb-register").style.display = "inline-block";
+    document.getElementById("ai-fab").style.display      = "none";
+  }
+})();
+
+// ── Profile dropdown (click-based) ───────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+  const toggle = document.getElementById("profile-toggle");
+  const menu   = document.getElementById("profile-menu");
+  if (toggle && menu) {
+    toggle.addEventListener("click", e => {
+      e.stopPropagation();
+      menu.classList.toggle("show");
+    });
+  }
+  document.addEventListener("click", e => {
+    if (menu && !menu.contains(e.target) && e.target !== toggle)
+      menu.classList.remove("show");
+  });
+
+  // PWA install
+  const ib = document.getElementById("pwa-install-btn");
+  const db = document.getElementById("pwa-dismiss-btn");
+  if (ib) ib.addEventListener("click", async () => {
+    if (!window._deferredPrompt) return;
+    window._deferredPrompt.prompt();
+    await window._deferredPrompt.userChoice;
+    window._deferredPrompt = null;
+    document.getElementById("pwa-install-banner").style.display = "none";
+  });
+  if (db) db.addEventListener("click", () =>
+    document.getElementById("pwa-install-banner").style.display = "none");
+});
+
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  window._deferredPrompt = e;
+  const b = document.getElementById("pwa-install-banner");
+  if (b) b.style.display = "flex";
+});
+
+// ── Logout ────────────────────────────────────────────────────────────
+function doLogout() {
+  localStorage.removeItem("tractonow_token");
+  localStorage.removeItem("tractonow_user");
+  window.location.href = "/login";
+}
+
+// ── AI Panel ──────────────────────────────────────────────────────────
+let _aiLoaded = false;
+async function toggleAIPanel() {
+  const p = document.getElementById("ai-popup");
+  p.style.display = p.style.display === "none" ? "block" : "none";
+  if (p.style.display === "block" && !_aiLoaded) {
+    const user = JSON.parse(localStorage.getItem("tractonow_user")||"null");
+    const res  = await Api.get(
+      `/ai/crop-demand?district=${encodeURIComponent(user?.district||"")}`
+    );
+    const el = document.getElementById("ai-popup-content");
+    if (!res?.success) { el.innerHTML="<p>Could not load.</p>"; return; }
+    const colors={"High":"#ef4444","Moderate":"#f59e0b","Low":"#22c55e"};
+    el.innerHTML = `
+      <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:.5rem;">
+        📅 ${res.month_name} Forecast</p>
+      ${res.all_crops.map(c=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;
+             padding:.45rem 0;border-bottom:1px solid var(--border);">
+          <span style="text-transform:capitalize;font-size:.87rem;">${c.icon} ${c.crop}</span>
+          <span style="background:${colors[c.demand]}22;color:${colors[c.demand]};
+               border:1px solid ${colors[c.demand]}55;border-radius:99px;
+               padding:.15rem .55rem;font-size:.75rem;font-weight:700;">${c.demand}</span>
+        </div>`).join("")}
+      <p style="font-size:.75rem;color:var(--text-muted);margin-top:.65rem;">${res.tip}</p>`;
+    _aiLoaded = true;
+  }
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
